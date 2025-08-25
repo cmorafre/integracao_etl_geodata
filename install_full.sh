@@ -256,12 +256,15 @@ choose_credentials_version
 credentials_choice=$?
 
 echo ""
+log_info "DEBUG: Valor retornado da escolha: $credentials_choice"
+echo ""
 echo -e "${PURPLE}========================================${NC}"
 echo -e "${PURPLE}🔒 CONFIGURANDO CREDENCIAIS${NC}"
 echo -e "${PURPLE}========================================${NC}"
 echo ""
 
 # Executar script de credenciais escolhido
+log_info "DEBUG: Verificando qual script executar..."
 if [ $credentials_choice -eq 1 ]; then
     log_info "Executando configure_credentials.sh (com testes de conexão)..."
     if [ -f "configure_credentials.sh" ]; then
@@ -277,6 +280,7 @@ if [ $credentials_choice -eq 1 ]; then
         exit 1
     fi
 elif [ $credentials_choice -eq 2 ]; then
+    log_info "DEBUG: Entrando na opção 2 (configure_credentials_simple.sh)"
     log_info "Executando configure_credentials_simple.sh (sem testes de conexão)..."
     
     # Debug - verificar se arquivo existe

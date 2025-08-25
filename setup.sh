@@ -420,13 +420,23 @@ else
     echo -e "${YELLOW}⚠️  Pasta 'sqls' não encontrada${NC}"
 fi
 
-# Copiar script de configuração de credenciais
+# Copiar scripts de configuração de credenciais
+echo -e "🔒 Copiando scripts de configuração de credenciais..."
+
 if [ -f "$SOURCE_DIR/configure_credentials.sh" ]; then
     cp "$SOURCE_DIR/configure_credentials.sh" .
     chmod +x configure_credentials.sh
-    echo -e "${GREEN}✅ Script de configuração de credenciais copiado${NC}"
+    echo -e "${GREEN}✅ configure_credentials.sh copiado${NC}"
 else
-    echo -e "${YELLOW}⚠️  Script configure_credentials.sh não encontrado${NC}"
+    echo -e "${YELLOW}⚠️  configure_credentials.sh não encontrado${NC}"
+fi
+
+if [ -f "$SOURCE_DIR/configure_credentials_simple.sh" ]; then
+    cp "$SOURCE_DIR/configure_credentials_simple.sh" .
+    chmod +x configure_credentials_simple.sh
+    echo -e "${GREEN}✅ configure_credentials_simple.sh copiado${NC}"
+else
+    echo -e "${YELLOW}⚠️  configure_credentials_simple.sh não encontrado${NC}"
 fi
 
 echo -e "${BLUE}🔒 Configuração de credenciais será feita na próxima etapa${NC}"
@@ -438,7 +448,7 @@ echo -e "${BLUE}🔒 Configuração de credenciais será feita na próxima etapa
 echo -e "\n${YELLOW}✅ 11. Validação final do setup...${NC}"
 
 # Verificar se todos os arquivos necessários estão no lugar
-REQUIRED_FILES=("main.py" "config.py" "etl_functions.py" "test_connections.py" "configure_credentials.sh")
+REQUIRED_FILES=("main.py" "config.py" "etl_functions.py" "test_connections.py")
 ALL_FILES_OK=true
 
 for file in "${REQUIRED_FILES[@]}"; do
@@ -449,6 +459,19 @@ for file in "${REQUIRED_FILES[@]}"; do
         ALL_FILES_OK=false
     fi
 done
+
+# Verificar scripts de credenciais (pelo menos um deve estar presente)
+if [ -f "configure_credentials.sh" ] || [ -f "configure_credentials_simple.sh" ]; then
+    if [ -f "configure_credentials.sh" ]; then
+        echo -e "${GREEN}✅ configure_credentials.sh presente${NC}"
+    fi
+    if [ -f "configure_credentials_simple.sh" ]; then
+        echo -e "${GREEN}✅ configure_credentials_simple.sh presente${NC}"
+    fi
+else
+    echo -e "${RED}❌ Nenhum script de configuração de credenciais encontrado${NC}"
+    ALL_FILES_OK=false
+fi
 
 # Verificar se há arquivos SQL
 if ls sql_scripts/*.sql 1> /dev/null 2>&1; then

@@ -77,31 +77,75 @@ echo -e "\n${YELLOW}🗄️  3. Configurando Oracle Instant Client...${NC}"
 if command -v sqlplus &> /dev/null; then
     echo -e "${GREEN}✅ Oracle Instant Client já instalado${NC}"
 else
-    echo -e "📥 Baixando Oracle Instant Client..."
+    echo -e "📥 Instalando Oracle Instant Client automaticamente..."
+    
+    # Criar diretório Oracle
+    sudo mkdir -p /opt/oracle
     
     # Criar diretório temporário
     TEMP_DIR="/tmp/oracle_setup"
     mkdir -p $TEMP_DIR
     cd $TEMP_DIR
     
-    # URLs dos packages Oracle (pode precisar atualizar)
-    # Nota: Oracle requer aceitar licença, então pode precisar download manual
-    echo -e "${YELLOW}⚠️  Oracle Instant Client precisa ser instalado manualmente:${NC}"
-    echo -e "1. Acesse: https://www.oracle.com/database/technologies/instant-client/linux-x86-64-downloads.html"
-    echo -e "2. Baixe: Basic Package (ZIP) e SQL*Plus Package (ZIP)"
-    echo -e "3. Extraia em /opt/oracle/instantclient_21_1/"
-    echo -e "4. Configure LD_LIBRARY_PATH"
+    # URLs diretas para Oracle Instant Client (sem necessidade de login Oracle)
+    # Usando versão 19.x que é mais estável e amplamente suportada
+    ORACLE_VERSION="19.16.0.0.0"
+    BASE_URL="https://download.oracle.com/otn_software/linux/instantclient/1916000"
     
-    echo -e "\n${BLUE}🔧 Comandos para configurar Oracle Client:${NC}"
-    echo -e "sudo mkdir -p /opt/oracle"
-    echo -e "sudo unzip instantclient-basic-linux.x64-21.1.0.0.0.zip -d /opt/oracle/"
-    echo -e "sudo unzip instantclient-sqlplus-linux.x64-21.1.0.0.0.zip -d /opt/oracle/"
-    echo -e "echo 'export LD_LIBRARY_PATH=/opt/oracle/instantclient_21_1:\$LD_LIBRARY_PATH' >> ~/.bashrc"
-    echo -e "echo 'export PATH=/opt/oracle/instantclient_21_1:\$PATH' >> ~/.bashrc"
-    echo -e "source ~/.bashrc"
+    echo -e "📥 Baixando Oracle Instant Client Basic..."
+    wget -q --show-progress "${BASE_URL}/instantclient-basic-linux.x64-${ORACLE_VERSION}dbru.zip" -O instantclient-basic.zip
     
-    echo -e "\n${YELLOW}⏸️  Pause: Configure Oracle Client manualmente e depois continue${NC}"
-    read -p "Pressione Enter quando Oracle Client estiver configurado..."
+    echo -e "📥 Baixando Oracle Instant Client SQL*Plus..."
+    wget -q --show-progress "${BASE_URL}/instantclient-sqlplus-linux.x64-${ORACLE_VERSION}dbru.zip" -O instantclient-sqlplus.zip
+    
+    # Verificar se downloads foram bem-sucedidos
+    if [[ -f "instantclient-basic.zip" && -f "instantclient-sqlplus.zip" ]]; then
+        echo -e "📂 Extraindo arquivos..."
+        sudo unzip -q instantclient-basic.zip -d /opt/oracle/
+        sudo unzip -q instantclient-sqlplus.zip -d /opt/oracle/
+        
+        # Renomear diretório para padrão esperado
+        sudo mv /opt/oracle/instantclient_* /opt/oracle/instantclient_19_1/
+        
+        # Configurar variáveis de ambiente
+        echo "# Oracle Instant Client" >> ~/.bashrc
+        echo "export LD_LIBRARY_PATH=/opt/oracle/instantclient_19_1:\$LD_LIBRARY_PATH" >> ~/.bashrc
+        echo "export PATH=/opt/oracle/instantclient_19_1:\$PATH" >> ~/.bashrc
+        echo "export ORACLE_HOME=/opt/oracle/instantclient_19_1" >> ~/.bashrc
+        
+        # Aplicar configurações na sessão atual
+        export LD_LIBRARY_PATH=/opt/oracle/instantclient_19_1:$LD_LIBRARY_PATH
+        export PATH=/opt/oracle/instantclient_19_1:$PATH
+        export ORACLE_HOME=/opt/oracle/instantclient_19_1
+        
+        # Teste de instalação
+        if /opt/oracle/instantclient_19_1/sqlplus -v &> /dev/null; then
+            echo -e "${GREEN}✅ Oracle Instant Client instalado e configurado com sucesso${NC}"
+        else
+            echo -e "${YELLOW}⚠️  Oracle Client instalado, mas pode precisar reiniciar o terminal${NC}"
+        fi
+        
+        # Limpar arquivos temporários
+        rm -f instantclient-*.zip
+        
+    else
+        echo -e "${RED}❌ Falha no download do Oracle Client. Tentando instalação manual...${NC}"
+        echo -e "${YELLOW}⚠️  Configure Oracle Client manualmente:${NC}"
+        echo -e "1. Acesse: https://www.oracle.com/database/technologies/instant-client/linux-x86-64-downloads.html"
+        echo -e "2. Baixe: Basic Package e SQL*Plus Package"
+        echo -e "3. Execute os comandos abaixo:"
+        echo -e "sudo mkdir -p /opt/oracle"
+        echo -e "sudo unzip instantclient-basic-*.zip -d /opt/oracle/"
+        echo -e "sudo unzip instantclient-sqlplus-*.zip -d /opt/oracle/"
+        echo -e "echo 'export LD_LIBRARY_PATH=/opt/oracle/instantclient_*:\$LD_LIBRARY_PATH' >> ~/.bashrc"
+        echo -e "echo 'export PATH=/opt/oracle/instantclient_*:\$PATH' >> ~/.bashrc"
+        echo -e "source ~/.bashrc"
+        
+        echo -e "\n${YELLOW}⏸️  Pause: Configure Oracle Client manualmente e depois continue${NC}"
+        read -p "Pressione Enter quando Oracle Client estiver configurado..."
+    fi
+    
+    cd $PROJECT_DIR
 fi
 
 # =============================================================================
@@ -184,7 +228,8 @@ cat > etl_cron.sh << 'EOF'
 
 # Definir variáveis de ambiente
 export PATH="/opt/etl_geodata/venv/bin:$PATH"
-export LD_LIBRARY_PATH="/opt/oracle/instantclient_21_1:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="/opt/oracle/instantclient_19_1:$LD_LIBRARY_PATH"
+export ORACLE_HOME="/opt/oracle/instantclient_19_1"
 
 # Navegar para diretório do projeto
 cd /opt/etl_geodata
@@ -259,7 +304,58 @@ done
 echo -e "${GREEN}✅ Testes de configuração concluídos${NC}"
 
 # =============================================================================
-# 10. INFORMAÇÕES FINAIS
+# 10. CÓPIA DOS ARQUIVOS SQL
+# =============================================================================
+
+echo -e "\n${YELLOW}📋 10. Copiando arquivos SQL...${NC}"
+
+# Diretório de origem dos arquivos SQL (assumindo que o setup está sendo executado no diretório do projeto)
+CURRENT_DIR="$(pwd)"
+SQL_SOURCE_DIR="$CURRENT_DIR/sqls"
+
+# Verificar se a pasta sqls existe no diretório atual
+if [ -d "$SQL_SOURCE_DIR" ]; then
+    echo -e "📁 Encontrada pasta sqls no diretório atual"
+    
+    # Copiar todos os arquivos .sql para o destino
+    if ls "$SQL_SOURCE_DIR"/*.sql 1> /dev/null 2>&1; then
+        cp "$SQL_SOURCE_DIR"/*.sql sql_scripts/
+        SQL_COUNT=$(ls -1 "$SQL_SOURCE_DIR"/*.sql | wc -l)
+        echo -e "${GREEN}✅ ${SQL_COUNT} arquivos SQL copiados para /opt/etl_geodata/sql_scripts/${NC}"
+        
+        # Listar arquivos copiados
+        echo -e "${BLUE}📋 Arquivos SQL copiados:${NC}"
+        for sql_file in "$SQL_SOURCE_DIR"/*.sql; do
+            filename=$(basename "$sql_file")
+            echo -e "   • $filename"
+        done
+        
+        # Ajustar permissões
+        chmod 644 sql_scripts/*.sql
+        
+        # Atualizar config.py para usar o diretório local
+        if [ -f "config.py" ]; then
+            # Backup do config original
+            cp config.py config.py.backup
+            
+            # Substituir o caminho SQL_SCRIPTS_DIR no config.py
+            sed -i 's|SQL_SCRIPTS_DIR = "/Users/cmorafre/Development/scripts_geodata"|SQL_SCRIPTS_DIR = "/opt/etl_geodata/sql_scripts"|g' config.py
+            echo -e "${GREEN}✅ Configuração atualizada em config.py${NC}"
+        fi
+        
+    else
+        echo -e "${YELLOW}⚠️  Nenhum arquivo .sql encontrado em $SQL_SOURCE_DIR${NC}"
+    fi
+    
+else
+    echo -e "${YELLOW}⚠️  Pasta 'sqls' não encontrada no diretório atual${NC}"
+    echo -e "${BLUE}💡 Para copiar arquivos SQL manualmente:${NC}"
+    echo -e "cp /caminho/para/seus/arquivos/*.sql /opt/etl_geodata/sql_scripts/"
+    echo -e "chmod 644 /opt/etl_geodata/sql_scripts/*.sql"
+fi
+
+# =============================================================================
+# 11. INFORMAÇÕES FINAIS
 # =============================================================================
 
 echo -e "\n${BLUE}=================================="
@@ -267,11 +363,11 @@ echo -e "🎉 SETUP CONCLUÍDO!"
 echo -e "==================================${NC}"
 
 echo -e "\n${YELLOW}📋 PRÓXIMOS PASSOS:${NC}"
-echo -e "1. Copie os arquivos Python (.py) para: $PROJECT_DIR"
-echo -e "2. Ajuste o caminho dos scripts SQL em config.py"
+echo -e "1. ${GREEN}✅ Arquivos Python copiados para: $PROJECT_DIR${NC}"
+echo -e "2. ${GREEN}✅ Arquivos SQL configurados automaticamente${NC}"
 echo -e "3. Execute teste de conexão: python test_connections.py"
-echo -e "4. Execute teste com arquivo específico: python main.py --file arquivo.sql"
-echo -e "5. Configure cron para execução diária"
+echo -e "4. Execute teste com arquivo específico: python main.py --file nome_arquivo.sql"
+echo -e "5. Configure cron para execução diária: crontab -e"
 
 echo -e "\n${YELLOW}🔧 COMANDOS ÚTEIS:${NC}"
 echo -e "• Ativar ambiente virtual: cd $PROJECT_DIR && source venv/bin/activate"

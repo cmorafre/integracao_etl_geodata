@@ -178,7 +178,32 @@ The setup script now automatically installs Oracle Instant Client 19.x, which is
 
 ## Security Considerations
 
-- Database passwords are stored in plain text in `config.py`
-- Ensure proper file permissions (600) on config files  
-- SQL injection protection via parameterized queries
-- Connection pooling with automatic cleanup
+### Credential Management
+- **No hardcoded credentials**: All sensitive data uses environment variables
+- **`.env` file**: Local configuration with restricted permissions (600)
+- **`.gitignore` protection**: Prevents accidental commit of sensitive files
+- **Environment-specific configs**: Different credentials for dev/prod
+
+### Security Features
+- **Validation**: Required credentials checked on startup
+- **Fallback protection**: Safe defaults for development environment
+- **SQL injection protection**: Parameterized queries throughout
+- **Connection pooling**: Automatic cleanup and connection limits
+
+### Setup Security
+- Production setup creates `.env` automatically with proper permissions
+- Local setup script for development environment
+- Template file (`.env.example`) for safe reference
+- Comprehensive security documentation in `SECURITY.md`
+
+### Best Practices Enforced
+```bash
+# Production credentials in environment variables
+ORACLE_PASSWORD=secure_production_password
+POSTGRES_PASSWORD=secure_production_password
+
+# File permissions automatically set to 600
+chmod 600 .env
+
+# Never commit sensitive files (enforced by .gitignore)
+```

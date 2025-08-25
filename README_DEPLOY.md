@@ -42,7 +42,8 @@ python test_connections.py
 ```
 /opt/etl_geodata/
 ├── main.py                 # Script principal
-├── config.py              # Configurações (path atualizado automaticamente)
+├── config.py              # Configurações (sem credenciais hardcoded)
+├── .env                   # Credenciais (criado automaticamente, permissões 600)
 ├── etl_functions.py       # Funções ETL
 ├── test_connections.py    # Teste de conexões
 ├── requirements.txt       # Dependências Python
@@ -57,6 +58,14 @@ python test_connections.py
     ├── faturamento_erp.sql
     └── ... (todos os arquivos .sql)
 ```
+
+### 🔒 Segurança Aprimorada
+
+**Credenciais Protegidas:**
+- ✅ Sem senhas no código fonte
+- ✅ Arquivo `.env` com permissões restritas (600)
+- ✅ Configurações específicas por ambiente
+- ✅ Validação automática de credenciais obrigatórias
 
 ### Comandos Úteis Pós-Instalação
 

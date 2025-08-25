@@ -420,19 +420,49 @@ else
     echo -e "${YELLOW}⚠️  Pasta 'sqls' não encontrada${NC}"
 fi
 
-# Atualizar config.py para usar o diretório correto
-if [ -f "config.py" ]; then
-    echo -e "⚙️  Atualizando configurações..."
-    
-    # Backup do config original
-    cp config.py config.py.backup
-    
-    # Substituir o caminho SQL_SCRIPTS_DIR no config.py para usar o diretório de produção
-    sed -i 's|SQL_SCRIPTS_DIR = ".*"|SQL_SCRIPTS_DIR = "/opt/etl_geodata/sql_scripts"|g' config.py
-    
-    echo -e "${GREEN}✅ Configuração atualizada em config.py${NC}"
-    echo -e "${BLUE}📋 SQL_SCRIPTS_DIR configurado para: /opt/etl_geodata/sql_scripts${NC}"
-fi
+# Criar arquivo .env com configurações de produção
+echo -e "⚙️  Criando arquivo de configuração .env..."
+
+cat > .env << EOF
+# =============================================================================
+# CONFIGURAÇÕES ETL GEODATA - PRODUÇÃO
+# =============================================================================
+# Este arquivo contém credenciais sensíveis - mantenha seguro!
+# =============================================================================
+
+# CONFIGURAÇÕES ORACLE (ORIGEM)
+ORACLE_HOST=192.168.10.243
+ORACLE_PORT=1521
+ORACLE_SERVICE_NAME=ORCL
+ORACLE_USER=GEODATA
+ORACLE_PASSWORD=GEo,D4tA0525#!
+
+# CONFIGURAÇÕES POSTGRESQL (DESTINO)
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DATABASE=postgres
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=geo@2025!@
+
+# CONFIGURAÇÕES DO ETL
+ETL_LOAD_STRATEGY=replace
+ETL_QUERY_TIMEOUT=300
+ETL_BATCH_SIZE=1000
+ETL_LOG_LEVEL=INFO
+
+# DIRETÓRIOS
+SQL_SCRIPTS_PATH=/opt/etl_geodata/sql_scripts
+LOG_DIRECTORY=/opt/etl_geodata/logs
+
+# AMBIENTE
+ENV=production
+EOF
+
+# Configurar permissões restritas no arquivo .env
+chmod 600 .env
+
+echo -e "${GREEN}✅ Arquivo .env criado com credenciais de produção${NC}"
+echo -e "${BLUE}🔒 Permissões restritivas aplicadas (600)${NC}"
 
 # =============================================================================
 # 11. VALIDAÇÃO FINAL

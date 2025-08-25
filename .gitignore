@@ -1,0 +1,47 @@
+# =============================================================================
+# GITIGNORE - ETL GEODATA
+# =============================================================================
+
+# Arquivos de credenciais - NUNCA committar!
+.env
+.env.local
+.env.production
+config.py.backup
+*.key
+*.pem
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Arquivos temporários
+temp/
+tmp/
+backup/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Ambientes virtuais
+venv/
+env/
+ENV/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos de teste locais
+test_*.py
+debug_*.py

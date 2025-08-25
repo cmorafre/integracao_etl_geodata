@@ -2,10 +2,29 @@
 """
 Configurações do sistema ETL GEODATA
 Centralizadas todas as configurações de conexão e parâmetros
+
+SEGURANÇA:
+- Credenciais são carregadas de variáveis de ambiente
+- Arquivo .env é usado para desenvolvimento local
+- NUNCA commite credenciais no código!
 """
 
 import os
 from pathlib import Path
+from typing import Dict, Any
+
+# Carregar variáveis de ambiente do arquivo .env se existir
+try:
+    from dotenv import load_dotenv
+    # Procurar arquivo .env no diretório do projeto
+    env_path = Path(__file__).parent / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"✅ Configurações carregadas de: {env_path}")
+    else:
+        print("⚠️  Arquivo .env não encontrado, usando variáveis de ambiente do sistema")
+except ImportError:
+    print("⚠️  python-decouple não instalado, usando variáveis de ambiente do sistema")
 
 # =====================================
 # CONFIGURAÇÕES DE PATHS
@@ -14,38 +33,108 @@ from pathlib import Path
 # Diretório base do projeto
 BASE_DIR = Path(__file__).parent
 
-# Pasta com os scripts SQL (ajuste conforme necessário no servidor)
-SQL_SCRIPTS_DIR = "/Users/cmorafre/Development/scripts_geodata"
+# Pasta com os scripts SQL (prioritiza variável de ambiente)
+SQL_SCRIPTS_DIR = os.getenv('SQL_SCRIPTS_PATH', '/opt/etl_geodata/sql_scripts')
 
-# Pasta de logs
-LOG_DIR = BASE_DIR / "logs"
+# Pasta de logs (prioritiza variável de ambiente)
+LOG_DIR = Path(os.getenv('LOG_DIRECTORY', str(BASE_DIR / "logs")))
 LOG_DIR.mkdir(exist_ok=True)
 
 # =====================================
 # CONFIGURAÇÕES ORACLE (ORIGEM)
 # =====================================
 
-ORACLE_CONFIG = {
-    'host': '192.168.10.243',
-    'port': 1521,
-    'service_name': 'ORCL',  # Usando service_name ao invés de SID
-    'user': 'GEODATA',
-    'password': 'GEo,D4tA0525#!',
-    'encoding': 'UTF-8'
-}
+def get_oracle_config() -> Dict[str, Any]:
+    """
+    Carrega configurações Oracle de variáveis de ambiente
+    Retorna erro se credenciais obrigatórias não estiverem definidas
+    """
+    config = {
+        'host': os.getenv('ORACLE_HOST'),
+        'port': int(os.getenv('ORACLE_PORT', '1521')),
+        'service_name': os.getenv('ORACLE_SERVICE_NAME', 'ORCL'),
+        'user': os.getenv('ORACLE_USER'),
+        'password': os.getenv('ORACLE_PASSWORD'),
+        'encoding': 'UTF-8'
+    }
+    
+    # Validar campos obrigatórios
+    required_fields = ['host', 'user', 'password']
+    missing_fields = [field for field in required_fields if not config.get(field)]
+    
+    if missing_fields:
+        raise ValueError(f"Configurações Oracle obrigatórias não definidas: {missing_fields}. "
+                        f"Defina as variáveis de ambiente: {[f'ORACLE_{field.upper()}' for field in missing_fields]}")
+    
+    return config
+
+# Carregar configurações Oracle
+try:
+    ORACLE_CONFIG = get_oracle_config()
+except ValueError as e:
+    print(f"❌ ERRO: {e}")
+    # Em desenvolvimento, usar valores padrão com aviso
+    if os.getenv('ENV', 'development') == 'development':
+        print("🚨 ATENÇÃO: Usando configurações padrão para desenvolvimento!")
+        print("🚨 Configure o arquivo .env com suas credenciais reais!")
+        ORACLE_CONFIG = {
+            'host': '192.168.10.243',
+            'port': 1521,
+            'service_name': 'ORCL',
+            'user': 'GEODATA', 
+            'password': 'CONFIGURE_NO_ARQUIVO_ENV',
+            'encoding': 'UTF-8'
+        }
+    else:
+        raise
 
 # =====================================
 # CONFIGURAÇÕES POSTGRESQL (DESTINO)
 # =====================================
 
-POSTGRESQL_CONFIG = {
-    'host': 'localhost',
-    'port': 5432,
-    'database': 'postgres',
-    'user': 'postgres',
-    'password': 'geo@2025!@',
-    'schema': 'public'
-}
+def get_postgresql_config() -> Dict[str, Any]:
+    """
+    Carrega configurações PostgreSQL de variáveis de ambiente
+    Retorna erro se credenciais obrigatórias não estiverem definidas
+    """
+    config = {
+        'host': os.getenv('POSTGRES_HOST', 'localhost'),
+        'port': int(os.getenv('POSTGRES_PORT', '5432')),
+        'database': os.getenv('POSTGRES_DATABASE', 'postgres'),
+        'user': os.getenv('POSTGRES_USER'),
+        'password': os.getenv('POSTGRES_PASSWORD'),
+        'schema': 'public'
+    }
+    
+    # Validar campos obrigatórios
+    required_fields = ['user', 'password']
+    missing_fields = [field for field in required_fields if not config.get(field)]
+    
+    if missing_fields:
+        raise ValueError(f"Configurações PostgreSQL obrigatórias não definidas: {missing_fields}. "
+                        f"Defina as variáveis de ambiente: {[f'POSTGRES_{field.upper()}' for field in missing_fields]}")
+    
+    return config
+
+# Carregar configurações PostgreSQL
+try:
+    POSTGRESQL_CONFIG = get_postgresql_config()
+except ValueError as e:
+    print(f"❌ ERRO: {e}")
+    # Em desenvolvimento, usar valores padrão com aviso
+    if os.getenv('ENV', 'development') == 'development':
+        print("🚨 ATENÇÃO: Usando configurações padrão para desenvolvimento!")
+        print("🚨 Configure o arquivo .env com suas credenciais reais!")
+        POSTGRESQL_CONFIG = {
+            'host': 'localhost',
+            'port': 5432,
+            'database': 'postgres',
+            'user': 'postgres',
+            'password': 'CONFIGURE_NO_ARQUIVO_ENV',
+            'schema': 'public'
+        }
+    else:
+        raise
 
 # =====================================
 # CONFIGURAÇÕES DO ETL
@@ -53,19 +142,19 @@ POSTGRESQL_CONFIG = {
 
 ETL_CONFIG = {
     # Estratégia de carga: 'replace' (DROP/CREATE) ou 'append' (INSERT)
-    'load_strategy': 'replace',
+    'load_strategy': os.getenv('ETL_LOAD_STRATEGY', 'replace'),
     
     # Timeout para queries (em segundos)
-    'query_timeout': 300,
+    'query_timeout': int(os.getenv('ETL_QUERY_TIMEOUT', '300')),
     
     # Tamanho do batch para inserção
-    'batch_size': 1000,
+    'batch_size': int(os.getenv('ETL_BATCH_SIZE', '1000')),
     
     # Prefixo para tabelas (opcional)
-    'table_prefix': '',
+    'table_prefix': os.getenv('ETL_TABLE_PREFIX', ''),
     
     # Sufixo para tabelas (opcional) 
-    'table_suffix': '',
+    'table_suffix': os.getenv('ETL_TABLE_SUFFIX', ''),
     
     # Extensões de arquivo SQL aceitas
     'sql_extensions': ['.sql'],
@@ -83,11 +172,11 @@ ETL_CONFIG = {
 # =====================================
 
 LOG_CONFIG = {
-    'level': 'INFO',  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+    'level': os.getenv('ETL_LOG_LEVEL', 'INFO'),  # DEBUG, INFO, WARNING, ERROR, CRITICAL
     'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     'date_format': '%Y-%m-%d %H:%M:%S',
-    'max_file_size': 10 * 1024 * 1024,  # 10MB
-    'backup_count': 5,
+    'max_file_size': int(os.getenv('LOG_MAX_FILE_SIZE', str(10 * 1024 * 1024))),  # 10MB default
+    'backup_count': int(os.getenv('LOG_BACKUP_COUNT', '5')),
     'log_file': LOG_DIR / 'etl_geodata.log'
 }
 

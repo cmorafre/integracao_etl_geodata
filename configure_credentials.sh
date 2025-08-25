@@ -54,9 +54,18 @@ test_oracle_connection() {
     local password="$5"
     
     echo -e "${YELLOW}🧪 Testando conexão Oracle...${NC}"
+    echo -e "${CYAN}    Host: $host:$port${NC}"
+    echo -e "${CYAN}    Service: $service${NC}"
+    echo -e "${CYAN}    User: $user${NC}"
     
-    # Usar python para testar conexão
-    python3 << EOF
+    # Verificar se python e módulos necessários estão disponíveis
+    if ! python3 -c "import cx_Oracle" 2>/dev/null; then
+        echo -e "${RED}❌ Módulo cx_Oracle não encontrado${NC}"
+        return 1
+    fi
+    
+    # Usar python para testar conexão com timeout
+    timeout 30 python3 << EOF
 import os
 import sys
 try:
@@ -97,9 +106,18 @@ test_postgresql_connection() {
     local password="$5"
     
     echo -e "${YELLOW}🧪 Testando conexão PostgreSQL...${NC}"
+    echo -e "${CYAN}    Host: $host:$port${NC}"
+    echo -e "${CYAN}    Database: $database${NC}"
+    echo -e "${CYAN}    User: $user${NC}"
     
-    # Usar python para testar conexão
-    python3 << EOF
+    # Verificar se python e módulos necessários estão disponíveis
+    if ! python3 -c "import psycopg2" 2>/dev/null; then
+        echo -e "${RED}❌ Módulo psycopg2 não encontrado${NC}"
+        return 1
+    fi
+    
+    # Usar python para testar conexão com timeout
+    timeout 30 python3 << EOF
 import sys
 try:
     import psycopg2
@@ -139,19 +157,41 @@ echo -e "==================================${NC}"
 echo ""
 
 # Verificar se estamos no diretório correto
+echo -e "${CYAN}📍 Diretório atual: $(pwd)${NC}"
+
 if [ ! -f "main.py" ] || [ ! -f "config.py" ]; then
     echo -e "${RED}❌ Execute este script no diretório /opt/etl_geodata/${NC}"
     echo -e "${YELLOW}💡 Comando: cd /opt/etl_geodata && ./configure_credentials.sh${NC}"
+    
+    # Mostrar arquivos presentes para debug
+    echo -e "${BLUE}📋 Arquivos encontrados no diretório atual:${NC}"
+    ls -la
     exit 1
 fi
+
+echo -e "${GREEN}✅ Arquivos principais encontrados${NC}"
 
 # Verificar se ambiente virtual existe e ativar
 if [ -d "venv" ]; then
     echo -e "${GREEN}🐍 Ativando ambiente virtual...${NC}"
-    source venv/bin/activate
+    
+    # Verificar se o activate existe e é executável
+    if [ -f "venv/bin/activate" ]; then
+        # Tentar ativar com timeout para evitar travamentos
+        if timeout 10 bash -c "source venv/bin/activate" 2>/dev/null; then
+            source venv/bin/activate
+            echo -e "${GREEN}✅ Ambiente virtual ativado${NC}"
+        else
+            echo -e "${YELLOW}⚠️  Problema ao ativar venv, tentando continuar sem ele...${NC}"
+            echo -e "${BLUE}💡 Usando Python global do sistema${NC}"
+        fi
+    else
+        echo -e "${RED}❌ Arquivo venv/bin/activate não encontrado${NC}"
+        echo -e "${YELLOW}💡 Continuando com Python global...${NC}"
+    fi
 else
-    echo -e "${RED}❌ Ambiente virtual não encontrado. Execute setup.sh primeiro.${NC}"
-    exit 1
+    echo -e "${YELLOW}⚠️  Ambiente virtual não encontrado${NC}"
+    echo -e "${BLUE}💡 Continuando com Python global do sistema${NC}"
 fi
 
 echo -e "${CYAN}Este script irá configurar as credenciais de acesso aos bancos de dados.${NC}"

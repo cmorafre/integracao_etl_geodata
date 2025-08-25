@@ -177,14 +177,20 @@ if [ -d "venv" ]; then
     
     # Verificar se o activate existe e é executável
     if [ -f "venv/bin/activate" ]; then
-        # Tentar ativar com timeout para evitar travamentos
-        if timeout 10 bash -c "source venv/bin/activate" 2>/dev/null; then
-            source venv/bin/activate
-            echo -e "${GREEN}✅ Ambiente virtual ativado${NC}"
-        else
-            echo -e "${YELLOW}⚠️  Problema ao ativar venv, tentando continuar sem ele...${NC}"
-            echo -e "${BLUE}💡 Usando Python global do sistema${NC}"
+        source venv/bin/activate
+        echo -e "${GREEN}✅ Ambiente virtual ativado${NC}"
+        
+        # Verificar e instalar python-dotenv se necessário
+        if ! python3 -c "import dotenv" 2>/dev/null; then
+            echo -e "${YELLOW}⚠️  Instalando python-dotenv...${NC}"
+            pip install python-dotenv >/dev/null 2>&1
+            if python3 -c "import dotenv" 2>/dev/null; then
+                echo -e "${GREEN}✅ python-dotenv instalado${NC}"
+            else
+                echo -e "${YELLOW}⚠️  Falha ao instalar python-dotenv, continuando...${NC}"
+            fi
         fi
+        
     else
         echo -e "${RED}❌ Arquivo venv/bin/activate não encontrado${NC}"
         echo -e "${YELLOW}💡 Continuando com Python global...${NC}"
@@ -192,6 +198,15 @@ if [ -d "venv" ]; then
 else
     echo -e "${YELLOW}⚠️  Ambiente virtual não encontrado${NC}"
     echo -e "${BLUE}💡 Continuando com Python global do sistema${NC}"
+fi
+
+# Configurar variáveis de ambiente Oracle
+if [ -d "/opt/oracle/instantclient_19_1" ]; then
+    echo -e "${BLUE}🔧 Configurando Oracle Client...${NC}"
+    export LD_LIBRARY_PATH="/opt/oracle/instantclient_19_1:$LD_LIBRARY_PATH"
+    export PATH="/opt/oracle/instantclient_19_1:$PATH"
+    export ORACLE_HOME="/opt/oracle/instantclient_19_1"
+    echo -e "${GREEN}✅ Variáveis Oracle configuradas${NC}"
 fi
 
 echo -e "${CYAN}Este script irá configurar as credenciais de acesso aos bancos de dados.${NC}"

@@ -25,12 +25,16 @@ The ETL system follows a modular architecture with the following key components:
 
 ## Development Commands
 
-### Automated Setup (Recommended)
+### Automated Setup (Recommended) - Two-Phase Security
 ```bash
 # Clone or extract project files
-# Run automated setup (Ubuntu Server)
+# Phase 1: Install infrastructure (no credentials)
 chmod +x setup.sh
 ./setup.sh
+
+# Phase 2: Configure credentials securely
+cd /opt/etl_geodata
+./configure_credentials.sh
 ```
 
 ### Manual Environment Setup
@@ -191,10 +195,12 @@ The setup script now automatically installs Oracle Instant Client 19.x, which is
 - **Connection pooling**: Automatic cleanup and connection limits
 
 ### Setup Security
-- Production setup creates `.env` automatically with proper permissions
-- Local setup script for development environment
-- Template file (`.env.example`) for safe reference
-- Comprehensive security documentation in `SECURITY.md`
+- **Two-phase deployment**: Infrastructure separate from credentials
+- **Interactive configuration**: Prompts for credentials with masked input
+- **Automatic validation**: Tests all connections before saving
+- **Zero exposure**: No credentials in public repository files
+- **Template file** (`.env.example`) for safe reference
+- **Comprehensive security documentation** in `SECURITY.md`
 
 ### Best Practices Enforced
 ```bash

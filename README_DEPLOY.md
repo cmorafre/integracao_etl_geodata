@@ -16,7 +16,7 @@ git clone <url-do-seu-repositorio> integracao_etl_geodata
 cd integracao_etl_geodata
 ```
 
-2. **Execute o setup automatizado:**
+2. **Execute o setup automatizado (Fase 1 - Infraestrutura):**
 ```bash
 chmod +x setup.sh
 ./setup.sh
@@ -30,9 +30,21 @@ O script fará automaticamente:
 - ✅ Instalação das dependências Python
 - ✅ Configuração dos logs e cron
 
-3. **Teste a instalação:**
+3. **Configure as credenciais (Fase 2 - Segurança):**
 ```bash
 cd /opt/etl_geodata
+./configure_credentials.sh
+```
+
+O script perguntará interativamente:
+- 📊 Credenciais Oracle (host, porta, usuário, senha)
+- 🐘 Credenciais PostgreSQL (host, porta, database, usuário, senha)
+- ⚙️ Configurações ETL (opcionais)
+- 🧪 Testará as conexões automaticamente
+
+4. **Teste a instalação:**
+```bash
+# Já estará em /opt/etl_geodata
 source venv/bin/activate
 python test_connections.py
 ```
@@ -41,31 +53,38 @@ python test_connections.py
 
 ```
 /opt/etl_geodata/
-├── main.py                 # Script principal
-├── config.py              # Configurações (sem credenciais hardcoded)
-├── .env                   # Credenciais (criado automaticamente, permissões 600)
-├── etl_functions.py       # Funções ETL
-├── test_connections.py    # Teste de conexões
-├── requirements.txt       # Dependências Python
-├── etl_cron.sh           # Script para cron
-├── venv/                 # Ambiente virtual Python
-├── logs/                 # Diretório de logs
-├── backup/               # Backups de configuração
-├── temp/                 # Arquivos temporários
-└── sql_scripts/          # Arquivos SQL (copiados automaticamente)
+├── main.py                    # Script principal
+├── config.py                 # Configurações (sem credenciais hardcoded)
+├── configure_credentials.sh  # Script de configuração de credenciais
+├── .env                      # Credenciais (criado na Fase 2, permissões 600)
+├── etl_functions.py          # Funções ETL
+├── test_connections.py       # Teste de conexões
+├── requirements.txt          # Dependências Python
+├── etl_cron.sh              # Script para cron
+├── venv/                    # Ambiente virtual Python
+├── logs/                    # Diretório de logs
+├── backup/                  # Backups de configuração
+├── temp/                    # Arquivos temporários
+└── sql_scripts/             # Arquivos SQL (copiados automaticamente)
     ├── clientes_erp.sql
     ├── produtos_erp.sql
     ├── faturamento_erp.sql
     └── ... (todos os arquivos .sql)
 ```
 
-### 🔒 Segurança Aprimorada
+### 🔒 Segurança Máxima
 
-**Credenciais Protegidas:**
-- ✅ Sem senhas no código fonte
+**Sistema de Duas Fases:**
+- 🏗️ **Fase 1**: Instala infraestrutura (sem credenciais)
+- 🔒 **Fase 2**: Configura credenciais interativamente
+
+**Proteções Implementadas:**
+- ✅ Zero credenciais no código público do GitHub
+- ✅ Configuração interativa com senhas mascaradas
+- ✅ Teste automático de conexões antes de salvar
 - ✅ Arquivo `.env` com permissões restritas (600)
-- ✅ Configurações específicas por ambiente
-- ✅ Validação automática de credenciais obrigatórias
+- ✅ Validação de credenciais obrigatórias
+- ✅ Backup automático de configurações anteriores
 
 ### Comandos Úteis Pós-Instalação
 

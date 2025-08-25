@@ -45,11 +45,16 @@ chmod +x setup_local.sh
 git clone <repo> integracao_etl_geodata
 cd integracao_etl_geodata
 
-# 2. Execute setup de produção
+# 2. Fase 1: Instalar infraestrutura
 chmod +x setup.sh
 ./setup.sh
 
-# 3. O arquivo .env será criado em /opt/etl_geodata/.env
+# 3. Fase 2: Configurar credenciais
+cd /opt/etl_geodata
+./configure_credentials.sh
+# Script pergunta credenciais interativamente
+# Testa conexões automaticamente
+# Cria .env com permissões 600
 ```
 
 ### Configuração Manual (Alternativa)

@@ -420,49 +420,16 @@ else
     echo -e "${YELLOW}⚠️  Pasta 'sqls' não encontrada${NC}"
 fi
 
-# Criar arquivo .env com configurações de produção
-echo -e "⚙️  Criando arquivo de configuração .env..."
+# Copiar script de configuração de credenciais
+if [ -f "$SOURCE_DIR/configure_credentials.sh" ]; then
+    cp "$SOURCE_DIR/configure_credentials.sh" .
+    chmod +x configure_credentials.sh
+    echo -e "${GREEN}✅ Script de configuração de credenciais copiado${NC}"
+else
+    echo -e "${YELLOW}⚠️  Script configure_credentials.sh não encontrado${NC}"
+fi
 
-cat > .env << EOF
-# =============================================================================
-# CONFIGURAÇÕES ETL GEODATA - PRODUÇÃO
-# =============================================================================
-# Este arquivo contém credenciais sensíveis - mantenha seguro!
-# =============================================================================
-
-# CONFIGURAÇÕES ORACLE (ORIGEM)
-ORACLE_HOST=192.168.10.243
-ORACLE_PORT=1521
-ORACLE_SERVICE_NAME=ORCL
-ORACLE_USER=GEODATA
-ORACLE_PASSWORD=GEo,D4tA0525#!
-
-# CONFIGURAÇÕES POSTGRESQL (DESTINO)
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_DATABASE=postgres
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=geo@2025!@
-
-# CONFIGURAÇÕES DO ETL
-ETL_LOAD_STRATEGY=replace
-ETL_QUERY_TIMEOUT=300
-ETL_BATCH_SIZE=1000
-ETL_LOG_LEVEL=INFO
-
-# DIRETÓRIOS
-SQL_SCRIPTS_PATH=/opt/etl_geodata/sql_scripts
-LOG_DIRECTORY=/opt/etl_geodata/logs
-
-# AMBIENTE
-ENV=production
-EOF
-
-# Configurar permissões restritas no arquivo .env
-chmod 600 .env
-
-echo -e "${GREEN}✅ Arquivo .env criado com credenciais de produção${NC}"
-echo -e "${BLUE}🔒 Permissões restritivas aplicadas (600)${NC}"
+echo -e "${BLUE}🔒 Configuração de credenciais será feita na próxima etapa${NC}"
 
 # =============================================================================
 # 11. VALIDAÇÃO FINAL
@@ -471,7 +438,7 @@ echo -e "${BLUE}🔒 Permissões restritivas aplicadas (600)${NC}"
 echo -e "\n${YELLOW}✅ 11. Validação final do setup...${NC}"
 
 # Verificar se todos os arquivos necessários estão no lugar
-REQUIRED_FILES=("main.py" "config.py" "etl_functions.py" "test_connections.py")
+REQUIRED_FILES=("main.py" "config.py" "etl_functions.py" "test_connections.py" "configure_credentials.sh")
 ALL_FILES_OK=true
 
 for file in "${REQUIRED_FILES[@]}"; do
@@ -517,11 +484,12 @@ echo -e "🎉 SETUP CONCLUÍDO!"
 echo -e "==================================${NC}"
 
 echo -e "\n${YELLOW}📋 PRÓXIMOS PASSOS:${NC}"
-echo -e "1. ${GREEN}✅ Sistema instalado e configurado automaticamente${NC}"
-echo -e "2. Execute teste de conexão: python test_connections.py"
-echo -e "3. Execute teste com arquivo específico: python main.py --file nome_arquivo.sql"
-echo -e "4. Execute ETL completo: python main.py"
-echo -e "5. Configure cron para execução diária: crontab -e"
+echo -e "1. ${GREEN}✅ Infraestrutura instalada e configurada${NC}"
+echo -e "2. ${YELLOW}🔒 CONFIGURE AS CREDENCIAIS:${NC} cd $PROJECT_DIR && ./configure_credentials.sh"
+echo -e "3. Execute teste de conexão: python test_connections.py"
+echo -e "4. Execute teste com arquivo específico: python main.py --file nome_arquivo.sql"
+echo -e "5. Execute ETL completo: python main.py"
+echo -e "6. Configure cron para execução diária: crontab -e"
 
 echo -e "\n${YELLOW}🔧 COMANDOS ÚTEIS:${NC}"
 echo -e "• Ativar ambiente virtual: cd $PROJECT_DIR && source venv/bin/activate"
@@ -535,12 +503,11 @@ echo -e "• Logs: $PROJECT_DIR/logs/"
 echo -e "• Script cron: $PROJECT_DIR/etl_cron.sh"
 echo -e "• Ambiente virtual: $PROJECT_DIR/venv/"
 
-echo -e "\n${GREEN}✨ Sistema ETL GEODATA pronto para uso!${NC}"
+echo -e "\n${YELLOW}✨ FASE 1 CONCLUÍDA - Infraestrutura Instalada!${NC}"
 
 # Desativar ambiente virtual
 deactivate
 
-echo -e "\n${BLUE}💡 Para começar:${NC}"
+echo -e "\n${BLUE}💡 Para continuar (FASE 2 - Credenciais):${NC}"
 echo -e "cd $PROJECT_DIR"
-echo -e "source venv/bin/activate"
-echo -e "python test_connections.py"
+echo -e "./configure_credentials.sh"

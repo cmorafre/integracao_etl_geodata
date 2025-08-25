@@ -212,6 +212,12 @@ fi
 echo -e "${CYAN}Este script irá configurar as credenciais de acesso aos bancos de dados.${NC}"
 echo -e "${YELLOW}As senhas não serão exibidas na tela por segurança.${NC}"
 echo ""
+echo -e "${GREEN}🚀 COMO USAR:${NC}"
+echo -e "${CYAN}   1. Para cada pergunta, você verá um valor padrão em [amarelo]${NC}"
+echo -e "${CYAN}   2. Pressione ENTER para aceitar o padrão${NC}"
+echo -e "${CYAN}   3. Ou digite um novo valor para substituir${NC}"
+echo -e "${CYAN}   4. As senhas ficarão ocultas quando digitadas${NC}"
+echo ""
 
 # =============================================================================
 # CONFIGURAÇÕES ORACLE
@@ -219,6 +225,11 @@ echo ""
 
 echo -e "${BLUE}📊 CONFIGURAÇÕES ORACLE (Banco de Origem)${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════${NC}"
+echo -e "${CYAN}💡 Instruções:${NC}"
+echo -e "${YELLOW}   • Pressione ENTER para aceitar valores padrão [em amarelo]${NC}"
+echo -e "${YELLOW}   • Digite um novo valor para substituir o padrão${NC}"
+echo -e "${YELLOW}   • A senha será oculta por segurança${NC}"
+echo ""
 
 ORACLE_HOST=$(read_with_default "Host/IP do servidor Oracle" "192.168.10.243")
 ORACLE_PORT=$(read_with_default "Porta do Oracle" "1521")
@@ -239,6 +250,8 @@ echo ""
 
 echo -e "${BLUE}🐘 CONFIGURAÇÕES POSTGRESQL (Banco de Destino)${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════${NC}"
+echo -e "${CYAN}💡 Configure as credenciais do PostgreSQL:${NC}"
+echo ""
 
 POSTGRES_HOST=$(read_with_default "Host/IP do servidor PostgreSQL" "localhost")
 POSTGRES_PORT=$(read_with_default "Porta do PostgreSQL" "5432")
@@ -259,6 +272,8 @@ echo ""
 
 echo -e "${BLUE}⚙️  CONFIGURAÇÕES DO ETL (Opcionais)${NC}"
 echo -e "${BLUE}═══════════════════════════════════${NC}"
+echo -e "${CYAN}💡 Configure parâmetros do ETL (pode aceitar os padrões):${NC}"
+echo ""
 
 ETL_LOAD_STRATEGY=$(read_with_default "Estratégia de carga (replace/append)" "replace")
 ETL_QUERY_TIMEOUT=$(read_with_default "Timeout de queries (segundos)" "300")

@@ -351,6 +351,7 @@ POSSIBLE_DIRS=(
     "$(pwd)"                                         # Diretório atual
     "$HOME/integracao_etl_geodata"                   # Home do usuário
     "/tmp/integracao_etl_geodata"                    # Temporário
+    "/tmp/etl_install/integracao_etl_geodata"        # Diretório usado pelo install_full.sh
 )
 
 SOURCE_DIR=""

@@ -239,11 +239,17 @@ log_step "5. Configurando credenciais..."
 cd "$FINAL_DIR"
 
 # Verificar se os scripts de credenciais existem
-if [ ! -f "configure_credentials.sh" ] || [ ! -f "configure_credentials_simple.sh" ]; then
-    log_error "Scripts de configuração de credenciais não encontrados em $FINAL_DIR"
+if [ ! -f "configure_credentials.sh" ] && [ ! -f "configure_credentials_simple.sh" ]; then
+    log_error "Nenhum script de configuração de credenciais encontrado em $FINAL_DIR"
     log_info "Verifique se o setup.sh copiou todos os arquivos corretamente"
+    log_info "Arquivos disponíveis:"
+    ls -la configure_credentials*
     exit 1
 fi
+
+# Debug - mostrar arquivos disponíveis
+log_info "Scripts disponíveis em $FINAL_DIR:"
+ls -la configure_credentials* 2>/dev/null || echo "Nenhum script configure_credentials* encontrado"
 
 # Escolher versão das credenciais
 choose_credentials_version
@@ -258,25 +264,38 @@ echo ""
 # Executar script de credenciais escolhido
 if [ $credentials_choice -eq 1 ]; then
     log_info "Executando configure_credentials.sh (com testes de conexão)..."
-    if ./configure_credentials.sh; then
-        log_success "Credenciais configuradas com sucesso (com testes)"
+    if [ -f "configure_credentials.sh" ]; then
+        if ./configure_credentials.sh; then
+            log_success "Credenciais configuradas com sucesso (com testes)"
+        else
+            log_error "Falha na configuração das credenciais (versão com testes)"
+            log_info "Você pode tentar novamente executando: cd $FINAL_DIR && ./configure_credentials.sh"
+            exit 1
+        fi
     else
-        log_error "Falha na configuração das credenciais (versão com testes)"
-        log_info "Você pode tentar novamente executando: cd $FINAL_DIR && ./configure_credentials.sh"
+        log_error "Arquivo configure_credentials.sh não encontrado!"
+        exit 1
+    fi
+elif [ $credentials_choice -eq 2 ]; then
+    log_info "Executando configure_credentials_simple.sh (sem testes de conexão)..."
+    if [ -f "configure_credentials_simple.sh" ]; then
+        if ./configure_credentials_simple.sh; then
+            log_success "Credenciais configuradas com sucesso (sem testes)"
+            echo ""
+            log_info "⚠️  Lembre-se de testar as conexões posteriormente com:"
+            echo -e "${CYAN}cd $FINAL_DIR && source venv/bin/activate && python test_connections.py${NC}"
+        else
+            log_error "Falha na configuração das credenciais (versão simples)"
+            log_info "Você pode tentar novamente executando: cd $FINAL_DIR && ./configure_credentials_simple.sh"
+            exit 1
+        fi
+    else
+        log_error "Arquivo configure_credentials_simple.sh não encontrado!"
         exit 1
     fi
 else
-    log_info "Executando configure_credentials_simple.sh (sem testes de conexão)..."
-    if ./configure_credentials_simple.sh; then
-        log_success "Credenciais configuradas com sucesso (sem testes)"
-        echo ""
-        log_info "⚠️  Lembre-se de testar as conexões posteriormente com:"
-        echo -e "${CYAN}cd $FINAL_DIR && source venv/bin/activate && python test_connections.py${NC}"
-    else
-        log_error "Falha na configuração das credenciais (versão simples)"
-        log_info "Você pode tentar novamente executando: cd $FINAL_DIR && ./configure_credentials_simple.sh"
-        exit 1
-    fi
+    log_error "Escolha de credenciais inválida: $credentials_choice"
+    exit 1
 fi
 
 # =============================================================================

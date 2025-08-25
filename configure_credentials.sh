@@ -23,11 +23,11 @@ read_with_default() {
     local default="$2"
     local value
     
-    echo -ne "${CYAN}$prompt${NC}"
+    echo -ne "${CYAN}$prompt${NC}" >&2
     if [ -n "$default" ]; then
-        echo -ne " [${YELLOW}$default${NC}]: "
+        echo -ne " [${YELLOW}$default${NC}]: " >&2
     else
-        echo -ne ": "
+        echo -ne ": " >&2
     fi
     
     read value
@@ -39,9 +39,9 @@ read_password() {
     local prompt="$1"
     local password
     
-    echo -ne "${CYAN}$prompt${NC}: "
+    echo -ne "${CYAN}$prompt${NC}: " >&2
     read -s password
-    echo  # Nova linha após input mascarado
+    echo "" >&2  # Nova linha após input mascarado
     echo "$password"
 }
 

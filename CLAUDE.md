@@ -165,9 +165,16 @@ The system is designed for Ubuntu Server deployment under `/opt/etl_geodata/`:
 
 The setup script now automatically installs Oracle Instant Client 19.x, which is essential for connecting to Oracle databases. The installation:
 - Downloads Oracle Client directly from Oracle's public repository
-- Configures environment variables automatically
-- Sets up proper library paths
+- Cleans any previous installations to avoid conflicts
+- Configures environment variables automatically (avoiding duplicates)
+- Sets up proper library paths and permissions
+- Validates installation with comprehensive checks
 - Falls back to manual installation if automatic download fails
+
+**Important Notes:**
+- The script handles reinstallation scenarios safely
+- Environment variables are cleaned before being reset
+- All Oracle Client files are verified after installation
 
 ## Security Considerations
 

@@ -79,11 +79,18 @@ if command -v sqlplus &> /dev/null; then
 else
     echo -e "📥 Instalando Oracle Instant Client automaticamente..."
     
-    # Criar diretório Oracle
+    # Limpar instalação anterior se existir
+    if [ -d "/opt/oracle/instantclient_19_1" ]; then
+        echo -e "🧹 Removendo instalação anterior do Oracle Client..."
+        sudo rm -rf /opt/oracle/instantclient_19_1
+    fi
+    
+    # Criar/recriar diretório Oracle limpo
     sudo mkdir -p /opt/oracle
     
     # Criar diretório temporário
     TEMP_DIR="/tmp/oracle_setup"
+    rm -rf $TEMP_DIR  # Limpar se existir
     mkdir -p $TEMP_DIR
     cd $TEMP_DIR
     
@@ -93,10 +100,16 @@ else
     BASE_URL="https://download.oracle.com/otn_software/linux/instantclient/1916000"
     
     echo -e "📥 Baixando Oracle Instant Client Basic..."
-    wget -q --show-progress "${BASE_URL}/instantclient-basic-linux.x64-${ORACLE_VERSION}dbru.zip" -O instantclient-basic.zip
+    if ! wget -q --show-progress "${BASE_URL}/instantclient-basic-linux.x64-${ORACLE_VERSION}dbru.zip" -O instantclient-basic.zip; then
+        echo -e "${RED}❌ Falha no download do Oracle Client Basic${NC}"
+        exit 1
+    fi
     
     echo -e "📥 Baixando Oracle Instant Client SQL*Plus..."
-    wget -q --show-progress "${BASE_URL}/instantclient-sqlplus-linux.x64-${ORACLE_VERSION}dbru.zip" -O instantclient-sqlplus.zip
+    if ! wget -q --show-progress "${BASE_URL}/instantclient-sqlplus-linux.x64-${ORACLE_VERSION}dbru.zip" -O instantclient-sqlplus.zip; then
+        echo -e "${RED}❌ Falha no download do Oracle Client SQL*Plus${NC}"
+        exit 1
+    fi
     
     # Verificar se downloads foram bem-sucedidos
     if [[ -f "instantclient-basic.zip" && -f "instantclient-sqlplus.zip" ]]; then
@@ -104,10 +117,27 @@ else
         sudo unzip -q instantclient-basic.zip -d /opt/oracle/
         sudo unzip -q instantclient-sqlplus.zip -d /opt/oracle/
         
-        # Renomear diretório para padrão esperado
-        sudo mv /opt/oracle/instantclient_* /opt/oracle/instantclient_19_1/
+        # Encontrar o diretório criado pelo unzip (pode variar o nome)
+        EXTRACTED_DIR=$(sudo find /opt/oracle -maxdepth 1 -name "instantclient_*" -type d | head -1)
         
-        # Configurar variáveis de ambiente
+        if [ -n "$EXTRACTED_DIR" ] && [ "$EXTRACTED_DIR" != "/opt/oracle/instantclient_19_1" ]; then
+            echo -e "🔄 Renomeando diretório Oracle Client..."
+            sudo mv "$EXTRACTED_DIR" /opt/oracle/instantclient_19_1/
+        elif [ -z "$EXTRACTED_DIR" ]; then
+            echo -e "${RED}❌ Erro: Diretório do Oracle Client não encontrado após extração${NC}"
+            exit 1
+        else
+            echo -e "✅ Diretório Oracle Client já está no local correto"
+        fi
+        
+        # Configurar variáveis de ambiente (evitando duplicação)
+        echo -e "⚙️  Configurando variáveis de ambiente..."
+        
+        # Remover configurações Oracle antigas do .bashrc se existirem
+        grep -v "Oracle Instant Client\|instantclient_19_1\|ORACLE_HOME" ~/.bashrc > ~/.bashrc.tmp || true
+        mv ~/.bashrc.tmp ~/.bashrc
+        
+        # Adicionar novas configurações
         echo "# Oracle Instant Client" >> ~/.bashrc
         echo "export LD_LIBRARY_PATH=/opt/oracle/instantclient_19_1:\$LD_LIBRARY_PATH" >> ~/.bashrc
         echo "export PATH=/opt/oracle/instantclient_19_1:\$PATH" >> ~/.bashrc
@@ -118,15 +148,28 @@ else
         export PATH=/opt/oracle/instantclient_19_1:$PATH
         export ORACLE_HOME=/opt/oracle/instantclient_19_1
         
-        # Teste de instalação
-        if /opt/oracle/instantclient_19_1/sqlplus -v &> /dev/null; then
-            echo -e "${GREEN}✅ Oracle Instant Client instalado e configurado com sucesso${NC}"
+        # Verificar se arquivos foram instalados corretamente
+        if [ -f "/opt/oracle/instantclient_19_1/libclntsh.so.19.1" ] && [ -f "/opt/oracle/instantclient_19_1/sqlplus" ]; then
+            echo -e "✅ Arquivos Oracle Client encontrados"
+            
+            # Ajustar permissões
+            sudo chmod +x /opt/oracle/instantclient_19_1/sqlplus
+            
+            # Teste de instalação
+            if /opt/oracle/instantclient_19_1/sqlplus -v &> /dev/null; then
+                echo -e "${GREEN}✅ Oracle Instant Client instalado e configurado com sucesso${NC}"
+            else
+                echo -e "${YELLOW}⚠️  Oracle Client instalado, mas pode precisar reiniciar o terminal${NC}"
+                echo -e "${BLUE}💡 Execute: source ~/.bashrc${NC}"
+            fi
         else
-            echo -e "${YELLOW}⚠️  Oracle Client instalado, mas pode precisar reiniciar o terminal${NC}"
+            echo -e "${RED}❌ Erro: Arquivos essenciais do Oracle Client não encontrados${NC}"
+            exit 1
         fi
         
         # Limpar arquivos temporários
-        rm -f instantclient-*.zip
+        cd /
+        rm -rf "$TEMP_DIR"
         
     else
         echo -e "${RED}❌ Falha no download do Oracle Client. Tentando instalação manual...${NC}"
@@ -144,8 +187,6 @@ else
         echo -e "\n${YELLOW}⏸️  Pause: Configure Oracle Client manualmente e depois continue${NC}"
         read -p "Pressione Enter quando Oracle Client estiver configurado..."
     fi
-    
-    cd $PROJECT_DIR
 fi
 
 # =============================================================================

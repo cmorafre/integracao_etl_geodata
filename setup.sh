@@ -276,10 +276,10 @@ EOF
 echo -e "${GREEN}✅ Logrotate configurado${NC}"
 
 # =============================================================================
-# 9. TESTES DE CONFIGURAÇÃO
+# 9. TESTES BÁSICOS DE PYTHON
 # =============================================================================
 
-echo -e "\n${YELLOW}🧪 9. Executando testes...${NC}"
+echo -e "\n${YELLOW}🧪 9. Testando imports Python...${NC}"
 
 # Testar imports Python
 python -c "
@@ -291,33 +291,72 @@ except ImportError as e:
     exit(1)
 "
 
-# Testar se arquivos principais existem
-REQUIRED_FILES=("main.py" "config.py" "etl_functions.py" "test_connections.py")
-for file in "${REQUIRED_FILES[@]}"; do
-    if [ ! -f "$file" ]; then
-        echo -e "${YELLOW}⚠️  Arquivo $file não encontrado. Copie os arquivos Python para $PROJECT_DIR${NC}"
-    else
-        echo -e "${GREEN}✅ $file encontrado${NC}"
+echo -e "${GREEN}✅ Testes básicos concluídos${NC}"
+
+# =============================================================================
+# 10. CÓPIA DOS ARQUIVOS PYTHON E SQL
+# =============================================================================
+
+echo -e "\n${YELLOW}📋 10. Copiando arquivos do projeto...${NC}"
+
+# Detectar diretório de origem do projeto
+# O script pode ser executado de diferentes locais após git clone
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+echo -e "📍 Diretório do script: $SCRIPT_DIR"
+
+# Possíveis locais onde os arquivos podem estar
+POSSIBLE_DIRS=(
+    "$SCRIPT_DIR"                                    # Mesmo diretório do setup.sh
+    "$(pwd)"                                         # Diretório atual
+    "$HOME/integracao_etl_geodata"                   # Home do usuário
+    "/tmp/integracao_etl_geodata"                    # Temporário
+)
+
+SOURCE_DIR=""
+SQL_SOURCE_DIR=""
+
+# Procurar diretório com os arquivos do projeto
+for dir in "${POSSIBLE_DIRS[@]}"; do
+    if [[ -f "$dir/main.py" && -f "$dir/config.py" && -d "$dir/sqls" ]]; then
+        SOURCE_DIR="$dir"
+        SQL_SOURCE_DIR="$dir/sqls"
+        echo -e "📁 Arquivos do projeto encontrados em: $SOURCE_DIR"
+        break
     fi
 done
 
-echo -e "${GREEN}✅ Testes de configuração concluídos${NC}"
+if [ -z "$SOURCE_DIR" ]; then
+    echo -e "${RED}❌ Não foi possível encontrar os arquivos do projeto!${NC}"
+    echo -e "${YELLOW}💡 Certifique-se de que os arquivos estão no mesmo diretório do setup.sh${NC}"
+    echo -e "${BLUE}📋 Para copiar manualmente:${NC}"
+    echo -e "cp /caminho/do/projeto/*.py /opt/etl_geodata/"
+    echo -e "cp /caminho/do/projeto/requirements.txt /opt/etl_geodata/"
+    echo -e "cp /caminho/do/projeto/sqls/*.sql /opt/etl_geodata/sql_scripts/"
+    exit 1
+fi
 
-# =============================================================================
-# 10. CÓPIA DOS ARQUIVOS SQL
-# =============================================================================
+# Copiar arquivos Python principais
+echo -e "🐍 Copiando arquivos Python..."
+PYTHON_FILES=("main.py" "config.py" "etl_functions.py" "test_connections.py")
+for file in "${PYTHON_FILES[@]}"; do
+    if [ -f "$SOURCE_DIR/$file" ]; then
+        cp "$SOURCE_DIR/$file" .
+        echo -e "${GREEN}✅ $file copiado${NC}"
+    else
+        echo -e "${YELLOW}⚠️  $file não encontrado${NC}"
+    fi
+done
 
-echo -e "\n${YELLOW}📋 10. Copiando arquivos SQL...${NC}"
+# Copiar requirements.txt se existir
+if [ -f "$SOURCE_DIR/requirements.txt" ]; then
+    cp "$SOURCE_DIR/requirements.txt" .
+    echo -e "${GREEN}✅ requirements.txt copiado${NC}"
+fi
 
-# Diretório de origem dos arquivos SQL (assumindo que o setup está sendo executado no diretório do projeto)
-CURRENT_DIR="$(pwd)"
-SQL_SOURCE_DIR="$CURRENT_DIR/sqls"
-
-# Verificar se a pasta sqls existe no diretório atual
+# Copiar arquivos SQL
 if [ -d "$SQL_SOURCE_DIR" ]; then
-    echo -e "📁 Encontrada pasta sqls no diretório atual"
+    echo -e "📋 Copiando arquivos SQL..."
     
-    # Copiar todos os arquivos .sql para o destino
     if ls "$SQL_SOURCE_DIR"/*.sql 1> /dev/null 2>&1; then
         cp "$SQL_SOURCE_DIR"/*.sql sql_scripts/
         SQL_COUNT=$(ls -1 "$SQL_SOURCE_DIR"/*.sql | wc -l)
@@ -333,29 +372,73 @@ if [ -d "$SQL_SOURCE_DIR" ]; then
         # Ajustar permissões
         chmod 644 sql_scripts/*.sql
         
-        # Atualizar config.py para usar o diretório local
-        if [ -f "config.py" ]; then
-            # Backup do config original
-            cp config.py config.py.backup
-            
-            # Substituir o caminho SQL_SCRIPTS_DIR no config.py
-            sed -i 's|SQL_SCRIPTS_DIR = "/Users/cmorafre/Development/scripts_geodata"|SQL_SCRIPTS_DIR = "/opt/etl_geodata/sql_scripts"|g' config.py
-            echo -e "${GREEN}✅ Configuração atualizada em config.py${NC}"
-        fi
-        
     else
         echo -e "${YELLOW}⚠️  Nenhum arquivo .sql encontrado em $SQL_SOURCE_DIR${NC}"
     fi
-    
 else
-    echo -e "${YELLOW}⚠️  Pasta 'sqls' não encontrada no diretório atual${NC}"
-    echo -e "${BLUE}💡 Para copiar arquivos SQL manualmente:${NC}"
-    echo -e "cp /caminho/para/seus/arquivos/*.sql /opt/etl_geodata/sql_scripts/"
-    echo -e "chmod 644 /opt/etl_geodata/sql_scripts/*.sql"
+    echo -e "${YELLOW}⚠️  Pasta 'sqls' não encontrada${NC}"
+fi
+
+# Atualizar config.py para usar o diretório correto
+if [ -f "config.py" ]; then
+    echo -e "⚙️  Atualizando configurações..."
+    
+    # Backup do config original
+    cp config.py config.py.backup
+    
+    # Substituir o caminho SQL_SCRIPTS_DIR no config.py para usar o diretório de produção
+    sed -i 's|SQL_SCRIPTS_DIR = ".*"|SQL_SCRIPTS_DIR = "/opt/etl_geodata/sql_scripts"|g' config.py
+    
+    echo -e "${GREEN}✅ Configuração atualizada em config.py${NC}"
+    echo -e "${BLUE}📋 SQL_SCRIPTS_DIR configurado para: /opt/etl_geodata/sql_scripts${NC}"
 fi
 
 # =============================================================================
-# 11. INFORMAÇÕES FINAIS
+# 11. VALIDAÇÃO FINAL
+# =============================================================================
+
+echo -e "\n${YELLOW}✅ 11. Validação final do setup...${NC}"
+
+# Verificar se todos os arquivos necessários estão no lugar
+REQUIRED_FILES=("main.py" "config.py" "etl_functions.py" "test_connections.py")
+ALL_FILES_OK=true
+
+for file in "${REQUIRED_FILES[@]}"; do
+    if [ -f "$file" ]; then
+        echo -e "${GREEN}✅ $file presente${NC}"
+    else
+        echo -e "${RED}❌ $file não encontrado${NC}"
+        ALL_FILES_OK=false
+    fi
+done
+
+# Verificar se há arquivos SQL
+if ls sql_scripts/*.sql 1> /dev/null 2>&1; then
+    SQL_COUNT=$(ls -1 sql_scripts/*.sql | wc -l)
+    echo -e "${GREEN}✅ ${SQL_COUNT} arquivos SQL disponíveis${NC}"
+else
+    echo -e "${YELLOW}⚠️  Nenhum arquivo SQL encontrado${NC}"
+fi
+
+# Verificar estrutura de diretórios
+REQUIRED_DIRS=("logs" "backup" "temp" "sql_scripts" "venv")
+for dir in "${REQUIRED_DIRS[@]}"; do
+    if [ -d "$dir" ]; then
+        echo -e "${GREEN}✅ Diretório $dir criado${NC}"
+    else
+        echo -e "${RED}❌ Diretório $dir não encontrado${NC}"
+    fi
+done
+
+# Status final
+if [ "$ALL_FILES_OK" = true ]; then
+    echo -e "\n${GREEN}🎉 VALIDAÇÃO COMPLETA: Sistema está pronto!${NC}"
+else
+    echo -e "\n${YELLOW}⚠️  ATENÇÃO: Alguns arquivos estão faltando. Verifique as mensagens acima.${NC}"
+fi
+
+# =============================================================================
+# 12. INFORMAÇÕES FINAIS
 # =============================================================================
 
 echo -e "\n${BLUE}=================================="
@@ -363,10 +446,10 @@ echo -e "🎉 SETUP CONCLUÍDO!"
 echo -e "==================================${NC}"
 
 echo -e "\n${YELLOW}📋 PRÓXIMOS PASSOS:${NC}"
-echo -e "1. ${GREEN}✅ Arquivos Python copiados para: $PROJECT_DIR${NC}"
-echo -e "2. ${GREEN}✅ Arquivos SQL configurados automaticamente${NC}"
-echo -e "3. Execute teste de conexão: python test_connections.py"
-echo -e "4. Execute teste com arquivo específico: python main.py --file nome_arquivo.sql"
+echo -e "1. ${GREEN}✅ Sistema instalado e configurado automaticamente${NC}"
+echo -e "2. Execute teste de conexão: python test_connections.py"
+echo -e "3. Execute teste com arquivo específico: python main.py --file nome_arquivo.sql"
+echo -e "4. Execute ETL completo: python main.py"
 echo -e "5. Configure cron para execução diária: crontab -e"
 
 echo -e "\n${YELLOW}🔧 COMANDOS ÚTEIS:${NC}"

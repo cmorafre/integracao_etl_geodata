@@ -278,19 +278,34 @@ if [ $credentials_choice -eq 1 ]; then
     fi
 elif [ $credentials_choice -eq 2 ]; then
     log_info "Executando configure_credentials_simple.sh (sem testes de conexão)..."
+    
+    # Debug - verificar se arquivo existe
     if [ -f "configure_credentials_simple.sh" ]; then
-        if ./configure_credentials_simple.sh; then
+        log_info "Arquivo configure_credentials_simple.sh encontrado"
+        log_info "Verificando permissões:"
+        ls -la configure_credentials_simple.sh
+        
+        # Temporariamente desabilitar set -e para ver o erro real
+        set +e
+        log_info "Iniciando execução do script..."
+        ./configure_credentials_simple.sh
+        exit_code=$?
+        set -e
+        
+        if [ $exit_code -eq 0 ]; then
             log_success "Credenciais configuradas com sucesso (sem testes)"
             echo ""
             log_info "⚠️  Lembre-se de testar as conexões posteriormente com:"
             echo -e "${CYAN}cd $FINAL_DIR && source venv/bin/activate && python test_connections.py${NC}"
         else
-            log_error "Falha na configuração das credenciais (versão simples)"
+            log_error "Falha na configuração das credenciais (código de saída: $exit_code)"
             log_info "Você pode tentar novamente executando: cd $FINAL_DIR && ./configure_credentials_simple.sh"
             exit 1
         fi
     else
         log_error "Arquivo configure_credentials_simple.sh não encontrado!"
+        log_info "Conteúdo do diretório $FINAL_DIR:"
+        ls -la
         exit 1
     fi
 else

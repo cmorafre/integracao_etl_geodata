@@ -96,16 +96,21 @@ class ETLProcessor:
         filtered_files = []
         for file_path in sql_files:
             skip_file = False
+            file_name = file_path.name  # Usar apenas o nome do arquivo, não o caminho completo
+            
             for pattern in ETL_CONFIG['ignore_patterns']:
-                if re.search(pattern, str(file_path), re.IGNORECASE):
-                    logger.info(f"⏭️  Ignorando arquivo: {file_path.name}")
+                if re.search(pattern, file_name, re.IGNORECASE):
+                    logger.info(f"⏭️  Ignorando arquivo: {file_name} (padrão: {pattern})")
                     skip_file = True
                     break
             
             if not skip_file:
+                logger.debug(f"✅ Aceito arquivo: {file_name}")
                 filtered_files.append(file_path)
+            else:
+                logger.debug(f"❌ Rejeitado arquivo: {file_name}")
         
-        logger.info(f"📁 Encontrados {len(filtered_files)} arquivos SQL para processamento")
+        logger.info(f"📁 Encontrados {len(filtered_files)} arquivos SQL para processamento ({len(sql_files)} total, {len(sql_files) - len(filtered_files)} ignorados)")
         return sorted(filtered_files)
     
     def extract_data_from_oracle(self, sql_file: Path) -> Optional[pd.DataFrame]:
@@ -203,15 +208,38 @@ class ETLProcessor:
         logger.info(f"📋 Schema inferido para {table_name}: {len(schema)} colunas")
         return schema
     
-    def create_postgresql_table(self, table_name: str, schema: List[Tuple[str, str]]) -> bool:
-        """Cria tabela no PostgreSQL"""
+    def table_exists_in_postgresql(self, table_name: str) -> bool:
+        """Verifica se tabela existe no PostgreSQL"""
         try:
             with self.postgresql_engine.connect() as conn:
-                # Drop table se existe (estratégia replace)
-                if ETL_CONFIG['load_strategy'] == 'replace':
-                    conn.execute(text(f'DROP TABLE IF EXISTS "{table_name}" CASCADE'))
-                    logger.info(f"🗑️  Tabela {table_name} removida (se existia)")
-                
+                result = conn.execute(text(f"""
+                    SELECT COUNT(*) 
+                    FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    AND table_name = '{table_name}'
+                """))
+                count = result.scalar()
+                return count > 0
+        except Exception as e:
+            logger.error(f"❌ Erro ao verificar existência da tabela {table_name}: {e}")
+            return False
+
+    def clear_postgresql_table_data(self, table_name: str) -> bool:
+        """Limpa dados da tabela PostgreSQL (mantém estrutura)"""
+        try:
+            with self.postgresql_engine.connect() as conn:
+                conn.execute(text(f'DELETE FROM "{table_name}"'))
+                conn.commit()
+                logger.info(f"🧹 Dados da tabela {table_name} removidos (estrutura preservada)")
+                return True
+        except Exception as e:
+            logger.error(f"❌ Erro ao limpar dados da tabela {table_name}: {e}")
+            return False
+
+    def create_postgresql_table(self, table_name: str, schema: List[Tuple[str, str]]) -> bool:
+        """Cria tabela no PostgreSQL (apenas se não existir)"""
+        try:
+            with self.postgresql_engine.connect() as conn:
                 # Construir CREATE TABLE
                 columns_sql = []
                 for col_name, col_type in schema:
@@ -303,9 +331,19 @@ class ETLProcessor:
             # 2. Transform: Inferir schema
             schema = self.infer_postgresql_schema(df, table_name)
             
-            # 3. Load: Criar tabela
-            if not self.create_postgresql_table(table_name, schema):
-                return False
+            # 3. Load: Verificar se tabela existe e preparar
+            table_exists = self.table_exists_in_postgresql(table_name)
+            
+            if not table_exists:
+                # Primeira execução: Criar tabela
+                logger.info(f"🆕 Tabela {table_name} não existe. Criando...")
+                if not self.create_postgresql_table(table_name, schema):
+                    return False
+            else:
+                # Execuções subsequentes: Limpar dados (preservar estrutura)
+                logger.info(f"🔄 Tabela {table_name} existe. Limpando dados...")
+                if not self.clear_postgresql_table_data(table_name):
+                    return False
             
             # 4. Load: Inserir dados
             if not self.load_data_to_postgresql(df, table_name, schema):

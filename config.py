@@ -159,11 +159,13 @@ ETL_CONFIG = {
     # Extensões de arquivo SQL aceitas
     'sql_extensions': ['.sql'],
     
-    # Arquivos SQL para ignorar (regex patterns)
+    # Arquivos SQL para ignorar (regex patterns) - aplicado apenas ao nome do arquivo
     'ignore_patterns': [
-        r'.*test.*',
-        r'.*backup.*',
-        r'.*\.bak\.sql$'
+        r'^test.*\.sql$',      # Arquivos que começam com "test"
+        r'.*_test\.sql$',      # Arquivos que terminam com "_test.sql"
+        r'^backup.*\.sql$',    # Arquivos que começam com "backup"
+        r'.*_backup\.sql$',    # Arquivos que terminam com "_backup.sql"
+        r'.*\.bak\.sql$'       # Arquivos .bak.sql
     ]
 }
 

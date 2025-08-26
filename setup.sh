@@ -152,6 +152,14 @@ else
         if [ -f "/opt/oracle/instantclient_19_1/libclntsh.so.19.1" ] && [ -f "/opt/oracle/instantclient_19_1/sqlplus" ]; then
             echo -e "✅ Arquivos Oracle Client encontrados"
             
+            # Criar diretório lib e links simbólicos para compatibilidade com cx_Oracle
+            echo -e "🔗 Criando links simbólicos para compatibilidade..."
+            sudo mkdir -p /opt/oracle/instantclient_19_1/lib
+            sudo ln -sf /opt/oracle/instantclient_19_1/libclntsh.so.19.1 /opt/oracle/instantclient_19_1/lib/libclntsh.so
+            sudo ln -sf /opt/oracle/instantclient_19_1/libclntsh.so.19.1 /opt/oracle/instantclient_19_1/libclntsh.so
+            sudo ln -sf /opt/oracle/instantclient_19_1/libocci.so.19.1 /opt/oracle/instantclient_19_1/lib/libocci.so
+            sudo ln -sf /opt/oracle/instantclient_19_1/libocci.so.19.1 /opt/oracle/instantclient_19_1/libocci.so
+            
             # Ajustar permissões
             sudo chmod +x /opt/oracle/instantclient_19_1/sqlplus
             

@@ -82,10 +82,39 @@ else
     echo -e "${RED}❌ libclntsh.so não encontrado em /opt/oracle/instantclient_19_1/lib/${NC}"
 fi
 
+# Verificar se libaio está instalado
+echo -e "${YELLOW}🔍 Verificando biblioteca libaio...${NC}"
+if ! ldconfig -p | grep -q "libaio.so.1"; then
+    echo -e "${YELLOW}📦 Instalando libaio necessário para Oracle...${NC}"
+    
+    # Tentar instalar libaio1t64 primeiro (Ubuntu 24.04+)
+    if sudo apt-get update -q && sudo apt-get install -y libaio1t64 2>/dev/null; then
+        echo -e "${GREEN}✅ libaio1t64 instalado${NC}"
+    # Se falhar, tentar libaio1 (versões mais antigas)
+    elif sudo apt-get install -y libaio1 2>/dev/null; then
+        echo -e "${GREEN}✅ libaio1 instalado${NC}"
+    else
+        echo -e "${RED}❌ Falha ao instalar libaio${NC}"
+        echo -e "${YELLOW}💡 Execute manualmente: sudo apt-get install libaio1t64${NC}"
+    fi
+    
+    # Criar link simbólico se necessário
+    if [ ! -f "/usr/lib/x86_64-linux-gnu/libaio.so.1" ] && [ -f "/usr/lib/x86_64-linux-gnu/libaio.so.1t64" ]; then
+        echo -e "${YELLOW}🔗 Criando link simbólico para libaio...${NC}"
+        sudo ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
+    fi
+fi
+
 # Testar sqlplus
 if command -v sqlplus &> /dev/null; then
     echo -e "${GREEN}✅ sqlplus encontrado no PATH${NC}"
-    sqlplus -v
+    echo -e "${YELLOW}🧪 Testando sqlplus...${NC}"
+    if sqlplus -v 2>/dev/null; then
+        echo -e "${GREEN}✅ sqlplus funcionando corretamente${NC}"
+    else
+        echo -e "${RED}❌ Erro ao executar sqlplus${NC}"
+        echo -e "${YELLOW}💡 Pode ser necessário instalar/corrigir libaio${NC}"
+    fi
 else
     echo -e "${YELLOW}⚠️  sqlplus não encontrado no PATH atual${NC}"
 fi

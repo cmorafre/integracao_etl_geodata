@@ -57,41 +57,6 @@ log_info() {
     echo -e "${CYAN}💡 $1${NC}"
 }
 
-# Função para escolher versão do configure_credentials
-choose_credentials_version() {
-    echo ""
-    echo -e "${BLUE}🔒 ESCOLHA A VERSÃO DE CONFIGURAÇÃO DE CREDENCIAIS${NC}"
-    echo -e "${BLUE}════════════════════════════════════════════════${NC}"
-    echo ""
-    echo -e "${GREEN}1) configure_credentials.sh${NC}"
-    echo -e "${CYAN}   • Versão completa com teste de conexões${NC}"
-    echo -e "${CYAN}   • Valida Oracle e PostgreSQL antes de salvar${NC}"
-    echo -e "${CYAN}   • Recomendado para produção${NC}"
-    echo ""
-    echo -e "${GREEN}2) configure_credentials_simple.sh${NC}"
-    echo -e "${CYAN}   • Versão simplificada SEM testes de conexão${NC}"
-    echo -e "${CYAN}   • Apenas coleta credenciais e cria .env${NC}"
-    echo -e "${CYAN}   • Recomendado para desenvolvimento/teste${NC}"
-    echo ""
-    
-    while true; do
-        echo -ne "${YELLOW}Escolha a versão (1 ou 2): ${NC}"
-        read -r choice
-        case $choice in
-            1)
-                echo -e "${GREEN}✅ Selecionado: configure_credentials.sh (com testes)${NC}"
-                return 1
-                ;;
-            2)
-                echo -e "${GREEN}✅ Selecionado: configure_credentials_simple.sh (sem testes)${NC}"
-                return 2
-                ;;
-            *)
-                echo -e "${RED}❌ Opção inválida! Digite 1 ou 2${NC}"
-                ;;
-        esac
-    done
-}
 
 # =============================================================================
 # INÍCIO DA INSTALAÇÃO
@@ -251,67 +216,60 @@ fi
 log_info "Scripts disponíveis em $FINAL_DIR:"
 ls -la configure_credentials* 2>/dev/null || echo "Nenhum script configure_credentials* encontrado"
 
-# Escolher versão das credenciais
-choose_credentials_version
-credentials_choice=$?
-
-# Reativar set -e para o resto do script
-set -e
-
 echo ""
 echo -e "${PURPLE}========================================${NC}"
 echo -e "${PURPLE}🔒 CONFIGURANDO CREDENCIAIS${NC}"
 echo -e "${PURPLE}========================================${NC}"
 echo ""
 
-# Executar script de credenciais escolhido
-if [ $credentials_choice -eq 1 ]; then
-    log_info "Executando configure_credentials.sh (com testes de conexão)..."
-    if [ -f "configure_credentials.sh" ]; then
-        chmod +x configure_credentials.sh
-        if ./configure_credentials.sh; then
-            log_success "Credenciais configuradas com sucesso (com testes)"
-        else
-            log_error "Falha na configuração das credenciais (versão com testes)"
-            log_info "Você pode tentar novamente executando: cd $FINAL_DIR && ./configure_credentials.sh"
-            exit 1
-        fi
-    else
-        log_error "Arquivo configure_credentials.sh não encontrado!"
-        exit 1
-    fi
-elif [ $credentials_choice -eq 2 ]; then
-    log_info "Executando configure_credentials_simple.sh (sem testes de conexão)..."
-    
-    if [ -f "configure_credentials_simple.sh" ]; then
-        chmod +x configure_credentials_simple.sh
-        
-        # Temporariamente desabilitar set -e para capturar o código de saída
-        set +e
-        ./configure_credentials_simple.sh
-        exit_code=$?
-        set -e
-        
-        if [ $exit_code -eq 0 ]; then
-            log_success "Credenciais configuradas com sucesso (sem testes)"
+# Escolher e executar versão das credenciais DIRETAMENTE
+echo -e "${BLUE}🔒 ESCOLHA A VERSÃO DE CONFIGURAÇÃO DE CREDENCIAIS${NC}"
+echo -e "${BLUE}════════════════════════════════════════════════${NC}"
+echo ""
+echo -e "${GREEN}1) configure_credentials.sh${NC}"
+echo -e "${CYAN}   • Versão completa com teste de conexões${NC}"
+echo -e "${CYAN}   • Valida Oracle e PostgreSQL antes de salvar${NC}"
+echo -e "${CYAN}   • Recomendado para produção${NC}"
+echo ""
+echo -e "${GREEN}2) configure_credentials_simple.sh${NC}"
+echo -e "${CYAN}   • Versão simplificada SEM testes de conexão${NC}"
+echo -e "${CYAN}   • Apenas coleta credenciais e cria .env${NC}"
+echo -e "${CYAN}   • Recomendado para desenvolvimento/teste${NC}"
+echo ""
+
+while true; do
+    echo -ne "${YELLOW}Escolha a versão (1 ou 2): ${NC}"
+    read -r choice
+    case $choice in
+        1)
+            echo -e "${GREEN}✅ Selecionado: configure_credentials.sh (com testes)${NC}"
             echo ""
-            log_info "⚠️  Lembre-se de testar as conexões posteriormente com:"
-            echo -e "${CYAN}cd $FINAL_DIR && source venv/bin/activate && python test_connections.py${NC}"
-        else
-            log_error "Falha na configuração das credenciais (código de saída: $exit_code)"
-            log_info "Você pode tentar novamente executando: cd $FINAL_DIR && ./configure_credentials_simple.sh"
-            exit 1
-        fi
-    else
-        log_error "Arquivo configure_credentials_simple.sh não encontrado!"
-        log_info "Conteúdo do diretório $FINAL_DIR:"
-        ls -la
-        exit 1
-    fi
-else
-    log_error "Escolha de credenciais inválida: $credentials_choice"
-    exit 1
-fi
+            if [ -f "configure_credentials.sh" ]; then
+                chmod +x configure_credentials.sh
+                ./configure_credentials.sh
+                break
+            else
+                log_error "Arquivo configure_credentials.sh não encontrado!"
+                exit 1
+            fi
+            ;;
+        2)
+            echo -e "${GREEN}✅ Selecionado: configure_credentials_simple.sh (sem testes)${NC}"
+            echo ""
+            if [ -f "configure_credentials_simple.sh" ]; then
+                chmod +x configure_credentials_simple.sh
+                ./configure_credentials_simple.sh
+                break
+            else
+                log_error "Arquivo configure_credentials_simple.sh não encontrado!"
+                exit 1
+            fi
+            ;;
+        *)
+            echo -e "${RED}❌ Opção inválida! Digite 1 ou 2${NC}"
+            ;;
+    esac
+done
 
 # =============================================================================
 # 6. LIMPEZA E FINALIZAÇÃO

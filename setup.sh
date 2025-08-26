@@ -59,7 +59,7 @@ sudo apt-get install -y \
     python3-venv \
     python3-dev \
     libpq-dev \
-    libaio1 \
+    libaio1t64 \
     unzip \
     wget \
     curl \

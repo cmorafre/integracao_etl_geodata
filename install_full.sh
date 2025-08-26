@@ -255,8 +255,9 @@ ls -la configure_credentials* 2>/dev/null || echo "Nenhum script configure_crede
 choose_credentials_version
 credentials_choice=$?
 
-echo ""
-log_info "DEBUG: Valor retornado da escolha: $credentials_choice"
+# Reativar set -e para o resto do script
+set -e
+
 echo ""
 echo -e "${PURPLE}========================================${NC}"
 echo -e "${PURPLE}🔒 CONFIGURANDO CREDENCIAIS${NC}"
@@ -264,10 +265,10 @@ echo -e "${PURPLE}========================================${NC}"
 echo ""
 
 # Executar script de credenciais escolhido
-log_info "DEBUG: Verificando qual script executar..."
 if [ $credentials_choice -eq 1 ]; then
     log_info "Executando configure_credentials.sh (com testes de conexão)..."
     if [ -f "configure_credentials.sh" ]; then
+        chmod +x configure_credentials.sh
         if ./configure_credentials.sh; then
             log_success "Credenciais configuradas com sucesso (com testes)"
         else
@@ -280,18 +281,13 @@ if [ $credentials_choice -eq 1 ]; then
         exit 1
     fi
 elif [ $credentials_choice -eq 2 ]; then
-    log_info "DEBUG: Entrando na opção 2 (configure_credentials_simple.sh)"
     log_info "Executando configure_credentials_simple.sh (sem testes de conexão)..."
     
-    # Debug - verificar se arquivo existe
     if [ -f "configure_credentials_simple.sh" ]; then
-        log_info "Arquivo configure_credentials_simple.sh encontrado"
-        log_info "Verificando permissões:"
-        ls -la configure_credentials_simple.sh
+        chmod +x configure_credentials_simple.sh
         
-        # Temporariamente desabilitar set -e para ver o erro real
+        # Temporariamente desabilitar set -e para capturar o código de saída
         set +e
-        log_info "Iniciando execução do script..."
         ./configure_credentials_simple.sh
         exit_code=$?
         set -e

@@ -280,8 +280,11 @@ def main():
         if os.path.exists(Path(SQL_SCRIPTS_DIR) / sql_file):
             sql_file_path = Path(SQL_SCRIPTS_DIR) / sql_file
         else:
-            # Tentar na pasta sqls do projeto atual
-            sql_file_path = Path("sqls") / sql_file
+            # Tentar na pasta sql_scripts do projeto atual
+            sql_file_path = Path("sql_scripts") / sql_file
+            # Fallback para sqls (pasta de desenvolvimento)
+            if not sql_file_path.exists():
+                sql_file_path = Path("sqls") / sql_file
         
         if not sql_file_path.exists():
             logger.error(f"❌ Arquivo não encontrado: {sql_file}")

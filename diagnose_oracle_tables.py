@@ -229,35 +229,47 @@ def main():
     
     # Definir caminhos completos
     sql_files = []
+    print(f"📁 Diretório SQL configurado: {SQL_SCRIPTS_DIR}")
+    
     for sql_file_name in sql_files_names:
         # Tentar primeiro no SQL_SCRIPTS_DIR (produção)
         production_path = Path(SQL_SCRIPTS_DIR) / sql_file_name
         if production_path.exists():
             sql_files.append(str(production_path))
+            print(f"✅ Encontrado: {production_path}")
         else:
             # Fallback para desenvolvimento
             dev_path = Path("sqls") / sql_file_name
             if dev_path.exists():
                 sql_files.append(str(dev_path))
+                print(f"✅ Encontrado (dev): {dev_path}")
             else:
-                print(f"⚠️  Arquivo não encontrado: {sql_file_name}")
+                print(f"❌ Arquivo não encontrado: {sql_file_name}")
                 print(f"   Tentou: {production_path}")
                 print(f"   Tentou: {dev_path}")
+                print(f"   Diretório existe? {Path(SQL_SCRIPTS_DIR).exists()}")
+                
+                # Listar arquivos no diretório para debug
+                try:
+                    if Path(SQL_SCRIPTS_DIR).exists():
+                        files_in_dir = list(Path(SQL_SCRIPTS_DIR).glob("*.sql"))
+                        print(f"   Arquivos .sql encontrados: {[f.name for f in files_in_dir]}")
+                except Exception as e:
+                    print(f"   Erro ao listar arquivos: {e}")
     
     total_issues = 0
     all_missing_tables = set()
     all_missing_functions = set()
     
+    print(f"🔍 Arquivos para analisar: {len(sql_files)}")
+    
     for sql_file in sql_files:
-        if Path(sql_file).exists():
-            result = diagnose_sql_file(sql_file)
-            
-            if 'error' not in result:
-                total_issues += result['total_issues']
-                all_missing_tables.update(result['missing_tables'])
-                all_missing_functions.update(result['missing_functions'])
-        else:
-            print(f"❌ Arquivo não encontrado: {sql_file}")
+        result = diagnose_sql_file(sql_file)
+        
+        if 'error' not in result:
+            total_issues += result['total_issues']
+            all_missing_tables.update(result['missing_tables'])
+            all_missing_functions.update(result['missing_functions'])
     
     # Relatório final
     print(f"\n{'='*80}")

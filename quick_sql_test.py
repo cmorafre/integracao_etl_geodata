@@ -101,8 +101,8 @@ def main():
     
     # Arquivos para testar
     sql_files = [
-        "sqls_scripts/carteira_pedido_venda_erp.sql",
-        "sqls_scripts/faturamento_erp.sql"
+        "sql_scripts/carteira_pedido_venda_erp.sql",
+        "sql_scripts/faturamento_erp.sql"
     ]
     
     errors = []

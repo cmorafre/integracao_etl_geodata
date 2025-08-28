@@ -37,7 +37,7 @@ select
   PED.CTAB_IPE CUST_TAB , PED.CTAB_IPE/ COALESCE(VLR.VLOR_VLR,1) CUST_TAB_OM,
   CTA.TABE_CTA, CTA.DESC_CTA,
   USU.NOME_PES USU_INCLUSAO,
-  --(select cust_med FROM BENTIVI.TABLE(custo_medio(PED.CODI_EMP, PED.CODI_PSV, CURRENT_dATE))) CUSTO_MEDIO,.
+  --(select cust_med from table(custo_medio(PED.CODI_EMP, PED.CODI_PSV, CURRENT_dATE))) CUSTO_MEDIO,.
   CCPD_IPE CUSTO_COMPRA, PRINCIPIO_ATIVO, UNID_PSV UNIDADE, 
   CASE
      WHEN  NEG.MOED_IND = 'R' THEN 'REAL'
@@ -48,14 +48,14 @@ select
   vneg.vlor_vlr COTACAO_DOLAR,
   (SELECT VLIQ_INF FROM 
   (
-   SELECT NFE.CODI_EMP, INF.CODI_PSV, INF.VLIQ_INF , NFE.DREC_NFE FROM BENTIVI.NFENTRA NFE
-       INNER JOIN BENTIVI.INFENTRA INF ON INF.CTRL_NFE = NFE.CTRL_NFE AND
+   SELECT NFE.CODI_EMP, INF.CODI_PSV, INF.VLIQ_INF , NFE.DREC_NFE FROM NFENTRA NFE
+       INNER JOIN INFENTRA INF ON INF.CTRL_NFE = NFE.CTRL_NFE AND
                                   INF.CODI_TRA = NFE.CODI_TRA AND
                                   INF.SERI_NFE = NFE.SERI_NFE AND
                                   INF.NUME_NFE = NFE.NUME_NFE AND
                                   INF.CODI_EMP = NFE.CODI_EMP 
-       INNER JOIN BENTIVI.CFO ON CFO.CCFO_CFO = NFE.CCFO_CFO
-       INNER JOIN BENTIVI.FUNCAOTOPER F  ON (F.CODI_TOP = NFE.CODI_TOP)   
+       INNER JOIN CFO ON CFO.CCFO_CFO = NFE.CCFO_CFO
+       INNER JOIN FUNCAOTOPER F  ON (F.CODI_TOP = NFE.CODI_TOP)   
        WHERE        
          F.CODI_PTO = 1 AND
          INF.CODI_PSV = PSV.CODI_PSV AND       
@@ -75,25 +75,26 @@ from
       ipe.qtde_ipe, PED.PEDI_PED, PED.SERI_PED, PED.CODI_tRA, PED.PROP_PRO, 
       PED.COND_CON, PED.COD1_PES CODI_PES, PED.CCFO_CFO, PED.VCTO_PED,
       coalesce(ipe.QPER_IPE,0) QPER_IPE, PED.DATA_VLR, PED.CODI_IND,
-      (select qent FROM BENTIVI.TABLE(QTDE_ENTR_PED_VEN(ped.codi_emp, ped.pedi_ped, ped.seri_ped, ipe.codi_psv))) ENTR_PED,
+      (select qent from table(QTDE_ENTR_PED_VEN(ped.codi_emp, ped.pedi_ped, ped.seri_ped, ipe.codi_psv))) ENTR_PED,
       CASE 
-         WHEN NOT EXISTS (SELECT * FROM BENTIVI.TOPCTRL T WHERE T.CODI_TOP = PED.CODI_TOP AND T.CODI_CTR = 5) THEN 'VN'
+         WHEN NOT EXISTS (SELECT * FROM TOPCTRL T WHERE T.CODI_TOP = PED.CODI_TOP AND T.CODI_CTR = 5) THEN 'VN'
          ELSE 'VF'
       END TIPO_PED,
       PED.TOTA_PED, IPE.VLIQ_IPE, IPE.CTAB_IPE, IPE.TABE_CTA, PED.CODI_USU,
       (SELECT LISTAGG( to_date(VENC_PFP,'dd/mm/yyyy'),';') WITHIN GROUP (ORDER BY VENC_PFP) VENC_PFP FROM(
         select 
            ped.VCTO_PED + PRAZ_PFP VENC_PFP, PFP.CODI_EMP, PFP.PEDI_PED, PFP.SERI_PED
-        FROM BENTIVI.PREFINAN PFP) F WHERE F.CODI_EMP = ped.CODI_EMP AND
+        from 
+           PREFINAN PFP) F WHERE F.CODI_EMP = ped.CODI_EMP AND
                                  F.PEDI_PED = ped.PEDI_PED AND
                                  F.SERI_PED = ped.SERI_PED) VENC_PFP, CCPD_IPE, CTRL_NEG, COD1_PES, pedo_ped, PED.NUME_CCP,
-      coalesce((select sum(pv.qtde_oco) FROM BENTIVI.OCORRENCIAS pv where pv.pedi_ped = ped.pedi_ped and
+      coalesce((select sum(pv.qtde_oco) from ocorrencias pv where pv.pedi_ped = ped.pedi_ped and
                                                     pv.seri_ped = ped.seri_ped and
                                                     pv.codi_emp = ped.codi_emp and
                                                     pv.codi_psv = ipe.codi_psv and
                                                     pv.codi_prv <> 12 AND pv.codi_prv <> 7),0) VENDA_PERDIDA_REAL
-      FROM BENTIVI.PEDIDO ped
-      inner JOIN BENTIVI.IPEDIDO ipe on ipe.codi_emp = ped.codi_emp and
+      from PEDIDO ped
+      inner join ipedido ipe on ipe.codi_emp = ped.codi_emp and
                           ipe.pedi_ped = ped.pedi_ped and
                           ipe.seri_ped = ped.seri_ped       
       where  ped.SITU_PED <> '9'       
@@ -113,8 +114,8 @@ LEFT JOIN
       when (neg.TIPO_NEG = 3) AND (MOED_IND='D') THEN VLR.VLOR_VLR
       ELSE NULL
    END COTACAO_DL_NEG
-  FROM BENTIVI.NEGOCIACAO neg
-  LEFT JOIN BENTIVI.INDVALOR VLR ON VLR.CODI_IND = NEG.CODI_IND AND
+  from negociacao neg
+  LEFT JOIN INDVALOR VLR ON VLR.CODI_IND = NEG.CODI_IND AND
                             VLR.CODI_EMP = NEG.CODI_EMP AND
                             VLR.DATA_VLR = NEG.DATA_VLR
   ) NEG ON NEG.CTRL_NEG = PED.CTRL_NEG AND
@@ -127,8 +128,10 @@ left join
      sum(coalesce(ino.qent_ino,0)) qent_ino,
      ino.pedi_ped, ino.seri_ped, ino.codi_psv,
      ino.EMPR_PED
-  FROM BENTIVI.INOTA ino 
-  inner JOIN BENTIVI.NOTA nta on nta.npre_not = ino.npre_not
+  from 
+     inota ino 
+  inner join 
+     nota nta on nta.npre_not = ino.npre_not
   where 
      nta.situ_not <> '9' and 
      ino.pedi_ped is not null AND
@@ -143,52 +146,57 @@ left join
 inner join 
    (select 
        emp.codi_emp, mun.desc_mun 
-    FROM BENTIVI.CADEMP emp 
-    inner JOIN BENTIVI.MUNICIPIO mun on mun.codi_mun = emp.codi_mun) emp on emp.codi_emp = ped.codi_emp
+    from 
+       cademp emp 
+    inner join 
+       municipio mun on mun.codi_mun = emp.codi_mun) emp on emp.codi_emp = ped.codi_emp
 inner join 
-    (select tra.codi_tra, tra.raza_tra, tra.cgc_tra FROM BENTIVI.TRANSAC tra) tra on tra.codi_tra = ped.codi_tra 
+    (select tra.codi_tra, tra.raza_tra, tra.cgc_tra from transac tra) tra on tra.codi_tra = ped.codi_tra 
 LEFT JOIN 
-    (SELECT PROP_PRO, DESC_PRO FROM BENTIVI.PROPRIED) PRO ON PRO.PROP_PRO = PED.PROP_PRO 
+    (SELECT PROP_PRO, DESC_PRO FROM PROPRIED) PRO ON PRO.PROP_PRO = PED.PROP_PRO 
 LEFT JOIN 
-    (SELECT CODI_CIC, DESC_CIC FROM BENTIVI.CICLO) CIC ON CIC.CODI_CIC = PED.CODI_CIC
+    (SELECT CODI_CIC, DESC_CIC FROM CICLO) CIC ON CIC.CODI_CIC = PED.CODI_CIC
 LEFT JOIN 
     (SELECT 
         CON.COND_CON, CON.DESC_CON
-     FROM BENTIVI.CONDICAO CON
+     FROM 
+        CONDICAO CON
      ) CON ON CON.COND_CON = PED.COND_CON
 LEFT JOIN 
-    (SELECT CCFO_CFO, DESC_CFO FROM BENTIVI.CFO) CFO ON CFO.CCFO_CFO = PED.CCFO_CFO    
+    (SELECT CCFO_CFO, DESC_CFO FROM CFO) CFO ON CFO.CCFO_CFO = PED.CCFO_CFO    
 LEFT JOIN 
-    (SELECT CODI_PES, NOME_PES FROM BENTIVI.PESSOAL) PES ON PES.CODI_PES = PED.CODI_PES     
+    (SELECT CODI_PES, NOME_PES FROM PESSOAL) PES ON PES.CODI_PES = PED.CODI_PES     
 LEFT JOIN 
-    (SELECT CODI_TOP, DESC_TOP FROM BENTIVI.TIPOOPER) TOP ON TOP.CODI_TOP = PED.CODI_TOP
+    (SELECT CODI_TOP, DESC_TOP FROM TIPOOPER) TOP ON TOP.CODI_TOP = PED.CODI_TOP
 LEFT JOIN 
     (SELECT 
         VLR.CODI_IND, VLR.CODI_EMP, VLR.DATA_VLR, VLR.VLOR_VLR, IND.DESC_IND  
-      FROM BENTIVI.INDVALOR VLR
-      INNER JOIN BENTIVI.INDEXADOR IND ON IND.CODI_IND = VLR.CODI_IND  ) VLR ON VLR.CODI_EMP = PED.CODI_EMP AND
+      FROM 
+        INDVALOR VLR
+      INNER JOIN 
+        INDEXADOR IND ON IND.CODI_IND = VLR.CODI_IND  ) VLR ON VLR.CODI_EMP = PED.CODI_EMP AND
                                                                VLR.CODI_IND = PED.CODI_IND AND
                                                                VLR.DATA_VLR = PED.DATA_VLR
 inner join 
     (SELECT  PSV.CODI_PSV, PSV.DESC_PSV, G.CODI_GPR, G.DESC_GPR, S.CODI_SBG, S.DESC_SBG, TRA.CODI_TRA, TRA.RAZA_TRA,
-      PRI.CODI_PRI ||'-'|| PRI.DESC_PRI PRINCIPIO_ATIVO, PSV.UNID_PSV FROM BENTIVI.PRODSERV PSV 
-     INNER JOIN BENTIVI.GRUPO G ON G.CODI_GPR = PSV.CODI_GPR         
-     LEFT JOIN BENTIVI.SUBGRUPO S ON S.CODI_SBG = PSV.CODI_SBG AND S.CODI_GPR = PSV.CODI_GPR
-     INNER JOIN BENTIVI.PRODUTO PRO ON PRO.CODI_PSV = PSV.CODI_PSV
-     LEFT JOIN BENTIVI.PRINATIVOS PRI ON (PRI.CODI_PRI = psv.CODI_PRI)
-     LEFT JOIN BENTIVI.TRANSAC TRA ON TRA.CODI_TRA = PRO.CODI_TRA) PSV ON PSV.CODI_PSV = PED.CODI_PSV
+      PRI.CODI_PRI ||'-'|| PRI.DESC_PRI PRINCIPIO_ATIVO, PSV.UNID_PSV FROM PRODSERV PSV 
+     INNER JOIN GRUPO G ON G.CODI_GPR = PSV.CODI_GPR         
+     LEFT JOIN SUBGRUPO S ON S.CODI_SBG = PSV.CODI_SBG AND S.CODI_GPR = PSV.CODI_GPR
+     INNER JOIN PRODUTO PRO ON PRO.CODI_PSV = PSV.CODI_PSV
+     LEFT JOIN PRINATIVOS PRI ON (PRI.CODI_PRI = psv.CODI_PRI)
+     LEFT JOIN TRANSAC TRA ON TRA.CODI_TRA = PRO.CODI_TRA) PSV ON PSV.CODI_PSV = PED.CODI_PSV
 LEFT JOIN 
-    (SELECT TABE_CTA, DESC_CTA FROM BENTIVI.CABTAB) CTA ON CTA.TABE_CTA = PED.TABE_CTA
+    (SELECT TABE_CTA, DESC_CTA FROM CABTAB) CTA ON CTA.TABE_CTA = PED.TABE_CTA
 LEFT JOIN 
-    BENTIVI.NEGOCIACAO NEG ON NEG.CTRL_NEG = PED.CTRL_NEG AND
+    NEGOCIACAO NEG ON NEG.CTRL_NEG = PED.CTRL_NEG AND
                       NEG.CODI_EMP = PED.CODI_EMP AND
                       NEG.CODI_PES = PED.COD1_PES
 left join 
-    BENTIVI.indvalor vneg on vneg.codi_emp = neg.codi_emp and
+    indvalor vneg on vneg.codi_emp = neg.codi_emp and
                      vneg.codi_ind = neg.codi_ind and
                      vneg.data_vlr = neg.data_vlr
 LEFT JOIN 
     (SELECT USU.CODI_USU, PES.CODI_PES, PES.NOME_PES 
-     FROM BENTIVI.PESSOAL PES 
-     INNER JOIN BENTIVI.CADUSU USU ON USU.CODI_PES = PES.CODI_PES) USU ON USU.CODI_USU = PED.CODI_USU
+     FROM PESSOAL PES 
+     INNER JOIN CADUSU USU ON USU.CODI_PES = PES.CODI_PES) USU ON USU.CODI_USU = PED.CODI_USU
 WHERE PED.DEMI_PED between '01/01/2024' and '31/12/2030'

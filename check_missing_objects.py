@@ -156,6 +156,10 @@ def main():
     print("Baseado nos erros ORA-00904 e ORA-00942")
     print("="*60)
     
+    # Mostrar informações dos caminhos
+    from config import SQL_SCRIPTS_DIR
+    print(f"📁 Diretório SQL configurado: {SQL_SCRIPTS_DIR}")
+    
     issues_count = check_specific_objects()
     
     if issues_count == 0:

@@ -219,11 +219,30 @@ def main():
     print("🔍 DIAGNÓSTICO DETALHADO DE TABELAS ORACLE")
     print("="*80)
     
-    # Arquivos para diagnosticar
-    sql_files = [
-        "sqls/carteira_pedido_venda_erp.sql",
-        "sqls/faturamento_erp.sql"
+    # Arquivos para diagnosticar - usar caminho dinâmico
+    from config import SQL_SCRIPTS_DIR
+    
+    sql_files_names = [
+        "carteira_pedido_venda_erp.sql",
+        "faturamento_erp.sql"
     ]
+    
+    # Definir caminhos completos
+    sql_files = []
+    for sql_file_name in sql_files_names:
+        # Tentar primeiro no SQL_SCRIPTS_DIR (produção)
+        production_path = Path(SQL_SCRIPTS_DIR) / sql_file_name
+        if production_path.exists():
+            sql_files.append(str(production_path))
+        else:
+            # Fallback para desenvolvimento
+            dev_path = Path("sqls") / sql_file_name
+            if dev_path.exists():
+                sql_files.append(str(dev_path))
+            else:
+                print(f"⚠️  Arquivo não encontrado: {sql_file_name}")
+                print(f"   Tentou: {production_path}")
+                print(f"   Tentou: {dev_path}")
     
     total_issues = 0
     all_missing_tables = set()

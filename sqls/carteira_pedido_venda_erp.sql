@@ -75,7 +75,7 @@ from
       ipe.qtde_ipe, PED.PEDI_PED, PED.SERI_PED, PED.CODI_tRA, PED.PROP_PRO, 
       PED.COND_CON, PED.COD1_PES CODI_PES, PED.CCFO_CFO, PED.VCTO_PED,
       coalesce(ipe.QPER_IPE,0) QPER_IPE, PED.DATA_VLR, PED.CODI_IND,
-      (select qent FROM BENTIVI.TABLE(QTDE_ENTR_PED_VEN(ped.codi_emp, ped.pedi_ped, ped.seri_ped, ipe.codi_psv))) ENTR_PED,
+      (select qent FROM TABLE(BENTIVI.QTDE_ENTR_PED_VEN(ped.codi_emp, ped.pedi_ped, ped.seri_ped, ipe.codi_psv))) ENTR_PED,
       CASE 
          WHEN NOT EXISTS (SELECT * FROM BENTIVI.TOPCTRL T WHERE T.CODI_TOP = PED.CODI_TOP AND T.CODI_CTR = 5) THEN 'VN'
          ELSE 'VF'

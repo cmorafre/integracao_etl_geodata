@@ -52,8 +52,8 @@ def add_bentivi_schema(sql_content):
     return sql_content
 
 def main():
-    input_file = '/Users/cmorafre/Development/projects/integracao_etl_geodata/sqls/faturamento_erp_v2_otimizado_v2.sql'
-    output_file = '/Users/cmorafre/Development/projects/integracao_etl_geodata/sqls/faturamento_erp_v2_final.sql'
+    input_file = '/Users/cmorafre/Development/projects/integracao_etl_geodata/sqls/faturamento_erp.sql'
+    output_file = '/Users/cmorafre/Development/projects/integracao_etl_geodata/sqls/faturamento_erp_final.sql'
     
     try:
         print(f"Lendo arquivo: {input_file}")

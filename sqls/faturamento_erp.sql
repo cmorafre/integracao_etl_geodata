@@ -1,9 +1,3 @@
--- =====================================================================================
--- SCRIPT OTIMIZADO CONSERVADOR: FATURAMENTO ERP V2
--- DBA: Elimina apenas subqueries duplicadas, mantém EXATAMENTE os mesmos JOINs
--- MANTÉM: Exatamente a mesma saída, estrutura e relacionamentos do script original
--- =====================================================================================
-
 WITH 
 -- CTE 1: Configuração de Tipos de Estoque (elimina 4 duplicações idênticas)
 tipos_estoque AS (
@@ -642,4 +636,4 @@ IDD.VPIS_IDD PIS, NULL BASE_COFINS, NULL ALIQ_COFINS, IDD.VCOF_IDD COFINS, NULL 
     LEFT JOIN vencimentos T ON T.CODI_EMP = CDS.CODI_EMP AND T.CODI_TRA = CDS.CODI_tRA AND T.NDOC_NOC = CDS.CODI_CDS AND T.Tdoc_nOC = 'DZ'  -- USA CTE
     WHERE (DDZ.TIPO_DDZ = 'NE')
 )
-WHERE EMISSAO_RECBTO BETWEEN TO_DATE('01/01/2024','DD/MM/YYYY') AND TO_DATE('31/12/2030','DD/MM/YYYY');
+WHERE EMISSAO_RECBTO BETWEEN TO_DATE('01/01/2024','DD/MM/YYYY') AND TO_DATE('31/12/2030','DD/MM/YYYY')AND TIPO_ENTRADA_SAIDA = 102

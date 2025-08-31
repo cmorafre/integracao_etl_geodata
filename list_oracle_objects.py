@@ -81,8 +81,8 @@ def execute_query_to_dataframe(engine, query: str, description: str) -> pd.DataF
         print(f"   ❌ Erro na consulta {description}: {e}")
         return pd.DataFrame()
 
-def get_user_owned_objects(engine) -> Dict[str, pd.DataFrame]:
-    """Obtém objetos que pertencem ao usuário GEODATA"""
+def get_bentivi_objects(engine) -> Dict[str, pd.DataFrame]:
+    """Obtém objetos do schema BENTIVI que o usuário GEODATA pode acessar"""
     queries = {
         'tables': {
             'query': """
@@ -91,12 +91,12 @@ def get_user_owned_objects(engine) -> Dict[str, pd.DataFrame]:
                     'TABLE' as OBJECT_TYPE,
                     NUM_ROWS,
                     LAST_ANALYZED,
-                    TABLESPACE_NAME,
-                    STATUS
-                FROM USER_TABLES 
+                    TABLESPACE_NAME
+                FROM ALL_TABLES 
+                WHERE OWNER = 'BENTIVI'
                 ORDER BY TABLE_NAME
             """,
-            'description': 'Tabelas do usuário'
+            'description': 'Tabelas do schema BENTIVI'
         },
         'views': {
             'query': """
@@ -105,24 +105,11 @@ def get_user_owned_objects(engine) -> Dict[str, pd.DataFrame]:
                     'VIEW' as OBJECT_TYPE,
                     TEXT_LENGTH,
                     READ_ONLY
-                FROM USER_VIEWS 
+                FROM ALL_VIEWS 
+                WHERE OWNER = 'BENTIVI'
                 ORDER BY VIEW_NAME
             """,
-            'description': 'Views do usuário'
-        },
-        'sequences': {
-            'query': """
-                SELECT 
-                    SEQUENCE_NAME as OBJECT_NAME,
-                    'SEQUENCE' as OBJECT_TYPE,
-                    MIN_VALUE,
-                    MAX_VALUE,
-                    INCREMENT_BY,
-                    LAST_NUMBER
-                FROM USER_SEQUENCES 
-                ORDER BY SEQUENCE_NAME
-            """,
-            'description': 'Sequences do usuário'
+            'description': 'Views do schema BENTIVI'
         },
         'procedures': {
             'query': """
@@ -132,44 +119,32 @@ def get_user_owned_objects(engine) -> Dict[str, pd.DataFrame]:
                     STATUS,
                     CREATED,
                     LAST_DDL_TIME
-                FROM USER_OBJECTS 
-                WHERE OBJECT_TYPE IN ('PROCEDURE', 'FUNCTION', 'PACKAGE', 'PACKAGE BODY', 'TRIGGER')
+                FROM ALL_OBJECTS 
+                WHERE OWNER = 'BENTIVI' 
+                AND OBJECT_TYPE IN ('PROCEDURE', 'FUNCTION', 'PACKAGE', 'PACKAGE BODY')
                 ORDER BY OBJECT_TYPE, OBJECT_NAME
             """,
-            'description': 'Procedures, Functions, Packages e Triggers do usuário'
+            'description': 'Procedures, Functions e Packages do schema BENTIVI'
         },
-        'indexes': {
+        'functions': {
             'query': """
                 SELECT 
-                    INDEX_NAME as OBJECT_NAME,
-                    'INDEX' as OBJECT_TYPE,
-                    TABLE_NAME,
-                    INDEX_TYPE,
-                    UNIQUENESS,
-                    STATUS
-                FROM USER_INDEXES 
-                ORDER BY TABLE_NAME, INDEX_NAME
-            """,
-            'description': 'Índices do usuário'
-        },
-        'constraints': {
-            'query': """
-                SELECT 
-                    CONSTRAINT_NAME as OBJECT_NAME,
-                    'CONSTRAINT' as OBJECT_TYPE,
-                    TABLE_NAME,
-                    CONSTRAINT_TYPE,
+                    OBJECT_NAME,
+                    'FUNCTION' as OBJECT_TYPE,
                     STATUS,
-                    VALIDATED
-                FROM USER_CONSTRAINTS 
-                ORDER BY TABLE_NAME, CONSTRAINT_NAME
+                    CREATED,
+                    LAST_DDL_TIME
+                FROM ALL_OBJECTS 
+                WHERE OWNER = 'BENTIVI' 
+                AND OBJECT_TYPE = 'FUNCTION'
+                ORDER BY OBJECT_NAME
             """,
-            'description': 'Constraints do usuário'
+            'description': 'Functions específicas do schema BENTIVI'
         }
     }
     
     print("\n" + "="*60)
-    print("📋 OBJETOS PERTENCENTES AO USUÁRIO GEODATA")
+    print("📋 OBJETOS DO SCHEMA BENTIVI ACESSÍVEIS PELO USUÁRIO GEODATA")
     print("="*60)
     
     results = {}
@@ -179,108 +154,26 @@ def get_user_owned_objects(engine) -> Dict[str, pd.DataFrame]:
     
     return results
 
-def get_accessible_objects(engine) -> Dict[str, pd.DataFrame]:
-    """Obtém objetos de outros schemas que o usuário pode acessar"""
-    queries = {
-        'accessible_tables': {
-            'query': """
-                SELECT 
-                    OWNER,
-                    TABLE_NAME as OBJECT_NAME,
-                    'TABLE' as OBJECT_TYPE,
-                    NUM_ROWS,
-                    LAST_ANALYZED,
-                    TABLESPACE_NAME
-                FROM ALL_TABLES 
-                WHERE OWNER != USER
-                ORDER BY OWNER, TABLE_NAME
-            """,
-            'description': 'Tabelas acessíveis de outros schemas'
-        },
-        'accessible_views': {
-            'query': """
-                SELECT 
-                    OWNER,
-                    VIEW_NAME as OBJECT_NAME,
-                    'VIEW' as OBJECT_TYPE,
-                    TEXT_LENGTH,
-                    READ_ONLY
-                FROM ALL_VIEWS 
-                WHERE OWNER != USER
-                ORDER BY OWNER, VIEW_NAME
-            """,
-            'description': 'Views acessíveis de outros schemas'
-        },
-        'accessible_sequences': {
-            'query': """
-                SELECT 
-                    SEQUENCE_OWNER as OWNER,
-                    SEQUENCE_NAME as OBJECT_NAME,
-                    'SEQUENCE' as OBJECT_TYPE,
-                    MIN_VALUE,
-                    MAX_VALUE,
-                    INCREMENT_BY,
-                    LAST_NUMBER
-                FROM ALL_SEQUENCES 
-                WHERE SEQUENCE_OWNER != USER
-                ORDER BY SEQUENCE_OWNER, SEQUENCE_NAME
-            """,
-            'description': 'Sequences acessíveis de outros schemas'
-        }
-    }
-    
-    print("\n" + "="*60)
-    print("🔓 OBJETOS ACESSÍVEIS DE OUTROS SCHEMAS")
-    print("="*60)
-    
-    results = {}
-    for category, info in queries.items():
-        df = execute_query_to_dataframe(engine, info['query'], info['description'])
-        results[category] = df
-    
-    return results
-
-def get_user_privileges(engine) -> Dict[str, pd.DataFrame]:
-    """Obtém privilégios do usuário"""
+def get_bentivi_privileges(engine) -> Dict[str, pd.DataFrame]:
+    """Obtém privilégios específicos do usuário GEODATA no schema BENTIVI"""
     queries = {
         'table_privileges': {
             'query': """
                 SELECT 
-                    OWNER,
-                    TABLE_NAME,
+                    TABLE_NAME as OBJECT_NAME,
                     PRIVILEGE,
                     GRANTABLE,
                     GRANTOR
                 FROM USER_TAB_PRIVS 
-                ORDER BY OWNER, TABLE_NAME, PRIVILEGE
+                WHERE OWNER = 'BENTIVI'
+                ORDER BY TABLE_NAME, PRIVILEGE
             """,
-            'description': 'Privilégios em tabelas/views'
-        },
-        'system_privileges': {
-            'query': """
-                SELECT 
-                    PRIVILEGE,
-                    ADMIN_OPTION
-                FROM USER_SYS_PRIVS 
-                ORDER BY PRIVILEGE
-            """,
-            'description': 'Privilégios de sistema'
-        },
-        'role_privileges': {
-            'query': """
-                SELECT 
-                    GRANTED_ROLE,
-                    ADMIN_OPTION,
-                    DEFAULT_ROLE
-                FROM USER_ROLE_PRIVS 
-                ORDER BY GRANTED_ROLE
-            """,
-            'description': 'Roles atribuídas'
+            'description': 'Privilégios em objetos do schema BENTIVI'
         }
     }
     
     print("\n" + "="*60)
-    print("🔐 PRIVILÉGIOS DO USUÁRIO")
+    print("🔐 PRIVILÉGIOS NO SCHEMA BENTIVI")
     print("="*60)
     
     results = {}
@@ -289,6 +182,8 @@ def get_user_privileges(engine) -> Dict[str, pd.DataFrame]:
         results[category] = df
     
     return results
+
+# Função removida - focando apenas no schema BENTIVI
 
 def generate_summary(all_results: Dict[str, Dict[str, pd.DataFrame]]) -> Dict[str, Any]:
     """Gera resumo dos resultados"""
@@ -312,118 +207,123 @@ def generate_summary(all_results: Dict[str, Dict[str, pd.DataFrame]]) -> Dict[st
     
     return summary
 
-def save_results_to_file(all_results: Dict[str, Dict[str, pd.DataFrame]], summary: Dict[str, Any]):
-    """Salva todos os resultados em um único arquivo TXT detalhado"""
+def save_bentivi_report(all_results: Dict[str, Dict[str, pd.DataFrame]], summary: Dict[str, Any]):
+    """Salva relatório focado no schema BENTIVI"""
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    report_file = f"oracle_objects_report_{timestamp}.txt"
+    report_file = f"bentivi_objects_report_{timestamp}.txt"
     
     with open(report_file, 'w', encoding='utf-8') as f:
         # Cabeçalho
         f.write("="*80 + "\n")
-        f.write("RELATÓRIO COMPLETO DE OBJETOS ORACLE ACESSÍVEIS\n")
+        f.write("RELATÓRIO DE OBJETOS DO SCHEMA BENTIVI\n")
         f.write("="*80 + "\n")
-        f.write(f"Usuário: {summary['user']}\n")
+        f.write(f"Usuário GEODATA - Acesso ao Schema: BENTIVI\n")
         f.write(f"Banco: {summary['database']}\n")
         f.write(f"Data/Hora: {summary['execution_time']}\n")
         f.write("="*80 + "\n\n")
         
-        # Resumo geral no topo
-        f.write("📊 RESUMO GERAL\n")
-        f.write("-" * 40 + "\n")
+        # Resumo geral
+        f.write("📊 RESUMO GERAL - SCHEMA BENTIVI\n")
+        f.write("-" * 50 + "\n")
         total_general = 0
         for category_group, cat_summary in summary['categories'].items():
-            f.write(f"• {category_group.replace('_', ' ').title()}: {cat_summary['total']} objetos\n")
             total_general += cat_summary['total']
-        f.write(f"\n🎯 TOTAL GERAL: {total_general} objetos acessíveis\n")
+            for subcategory, count in cat_summary.items():
+                if subcategory != 'total' and count > 0:
+                    f.write(f"• {subcategory.replace('_', ' ').title()}: {count} objetos\n")
+        
+        f.write(f"\n🎯 TOTAL DE OBJETOS BENTIVI ACESSÍVEIS: {total_general}\n")
         f.write("\n" + "="*80 + "\n\n")
         
         # Detalhes por categoria
         for category_group, results in all_results.items():
-            f.write(f"📁 {category_group.upper().replace('_', ' ')}\n")
-            f.write("="*80 + "\n")
-            
-            category_total = 0
             for subcategory, df in results.items():
                 if not df.empty:
-                    category_total += len(df)
-                    f.write(f"\n📋 {subcategory.replace('_', ' ').title()}: {len(df)} objetos\n")
-                    f.write("-" * 60 + "\n")
+                    f.write(f"📋 {subcategory.replace('_', ' ').upper()} DO SCHEMA BENTIVI\n")
+                    f.write("="*80 + "\n")
                     
-                    # Listar TODOS os objetos (não apenas os primeiros 10)
+                    # Listar todos os objetos
                     for i, row in df.iterrows():
-                        # Formatar linha baseado no tipo de informação disponível
-                        if 'OWNER' in row and pd.notna(row['OWNER']) and row['OWNER'] != summary['user']:
-                            # Objeto de outro schema
-                            line = f"{i+1:4d}. {row['OWNER']}.{row['OBJECT_NAME']} ({row['OBJECT_TYPE']})"
-                        else:
-                            # Objeto próprio do usuário
-                            line = f"{i+1:4d}. {row['OBJECT_NAME']} ({row['OBJECT_TYPE']})"
+                        line = f"{i+1:4d}. BENTIVI.{row['OBJECT_NAME']} ({row['OBJECT_TYPE']})"
                         
-                        # Adicionar informações extras se disponíveis
+                        # Informações extras
                         extra_info = []
                         if 'STATUS' in row and pd.notna(row['STATUS']):
                             extra_info.append(f"Status: {row['STATUS']}")
-                        if 'NUM_ROWS' in row and pd.notna(row['NUM_ROWS']):
-                            extra_info.append(f"Linhas: {row['NUM_ROWS']:,}")
-                        if 'TABLE_NAME' in row and pd.notna(row['TABLE_NAME']) and row['OBJECT_TYPE'] in ['INDEX', 'CONSTRAINT']:
-                            extra_info.append(f"Tabela: {row['TABLE_NAME']}")
+                        if 'NUM_ROWS' in row and pd.notna(row['NUM_ROWS']) and row['NUM_ROWS'] > 0:
+                            extra_info.append(f"Registros: {row['NUM_ROWS']:,}")
+                        if 'LAST_ANALYZED' in row and pd.notna(row['LAST_ANALYZED']):
+                            extra_info.append(f"Analisada: {str(row['LAST_ANALYZED'])[:10]}")
+                        if 'CREATED' in row and pd.notna(row['CREATED']):
+                            extra_info.append(f"Criada: {str(row['CREATED'])[:10]}")
+                        if 'TEXT_LENGTH' in row and pd.notna(row['TEXT_LENGTH']):
+                            extra_info.append(f"Tamanho: {row['TEXT_LENGTH']} chars")
                         if 'PRIVILEGE' in row and pd.notna(row['PRIVILEGE']):
                             extra_info.append(f"Privilégio: {row['PRIVILEGE']}")
                         if 'GRANTABLE' in row and pd.notna(row['GRANTABLE']) and row['GRANTABLE'] == 'YES':
                             extra_info.append("Pode conceder")
                         
                         if extra_info:
-                            line += f" [{', '.join(extra_info)}]"
+                            line += f"\n     [{', '.join(extra_info)}]"
                         
                         f.write(line + "\n")
                     
-                    f.write(f"\n   Total: {len(df)} objetos\n")
-            
-            if category_total == 0:
-                f.write("   Nenhum objeto encontrado nesta categoria.\n")
-            
-            f.write(f"\n   SUBTOTAL {category_group.replace('_', ' ').upper()}: {category_total} objetos\n")
-            f.write("\n" + "="*80 + "\n\n")
+                    f.write(f"\n   TOTAL: {len(df)} {subcategory.replace('_', ' ')} encontradas\n")
+                    f.write("\n" + "="*80 + "\n\n")
+        
+        # Se não encontrou nenhum objeto
+        if total_general == 0:
+            f.write("⚠️  ATENÇÃO: Nenhum objeto encontrado no schema BENTIVI\n")
+            f.write("   Possíveis causas:\n")
+            f.write("   • Schema BENTIVI não existe\n")
+            f.write("   • Usuário GEODATA não tem privilégios de acesso\n")
+            f.write("   • Schema está vazio\n\n")
         
         # Rodapé
         f.write("INFORMAÇÕES ADICIONAIS\n")
         f.write("-" * 40 + "\n")
-        f.write("• Este relatório lista todos os objetos Oracle acessíveis pelo usuário\n")
-        f.write("• Objetos próprios não mostram o prefixo do schema (são do usuário atual)\n")
-        f.write("• Objetos de outros schemas mostram SCHEMA.OBJETO\n")
-        f.write("• Privilégios mostram o que o usuário pode fazer em cada objeto\n")
-        f.write(f"• Gerado automaticamente em: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write("• Este relatório mostra APENAS objetos do schema BENTIVI\n")
+        f.write("• Tipos de objeto: TABELAS, VIEWS, PROCEDURES, FUNCTIONS\n")
+        f.write("• Usuário consultado: GEODATA\n")
+        f.write("• Schema consultado: BENTIVI\n")
+        f.write(f"• Relatório gerado em: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         f.write("\n" + "="*80 + "\n")
     
-    print(f"📋 Relatório completo salvo em: {report_file}")
-    print(f"📄 Arquivo único contém {total_general} objetos detalhados")
+    print(f"📋 Relatório do schema BENTIVI salvo em: {report_file}")
+    print(f"📄 Total de objetos encontrados: {total_general}")
     return report_file
 
-def print_summary_console(summary: Dict[str, Any]):
-    """Exibe resumo no console"""
+def print_bentivi_summary(summary: Dict[str, Any]):
+    """Exibe resumo focado no schema BENTIVI"""
     print("\n" + "="*80)
-    print("📊 RESUMO GERAL")
+    print("📊 RESUMO - SCHEMA BENTIVI")
     print("="*80)
-    print(f"👤 Usuário: {summary['user']}")
+    print(f"👤 Usuário: GEODATA")
+    print(f"🗄️  Schema: BENTIVI")
     print(f"🗄️  Banco: {summary['database']}")
     print(f"⏰ Data/Hora: {summary['execution_time']}")
     print()
     
     total_general = 0
     for category_group, cat_summary in summary['categories'].items():
-        print(f"📁 {category_group.replace('_', ' ').title()}: {cat_summary['total']} objetos")
         for subcategory, count in cat_summary.items():
             if subcategory != 'total' and count > 0:
-                print(f"   • {subcategory.replace('_', ' ').title()}: {count}")
-        total_general += cat_summary['total']
-        print()
+                print(f"📁 {subcategory.replace('_', ' ').title()}: {count} objetos")
+                total_general += count
     
-    print(f"🎯 TOTAL GERAL: {total_general} objetos acessíveis")
+    print()
+    if total_general > 0:
+        print(f"🎯 TOTAL DE OBJETOS BENTIVI ACESSÍVEIS: {total_general}")
+    else:
+        print("⚠️  Nenhum objeto encontrado no schema BENTIVI")
+        print("   Verifique se o schema existe e se há privilégios de acesso")
 
 def main():
-    """Função principal"""
-    print("🚀 LISTAGEM DE OBJETOS ORACLE ACESSÍVEIS - ETL GEODATA")
+    """Função principal - foco no schema BENTIVI"""
+    print("🚀 ANÁLISE DE OBJETOS DO SCHEMA BENTIVI")
     print("=" * 80)
+    print(f"👤 Usuário: GEODATA")
+    print(f"🗄️  Schema: BENTIVI") 
     print(f"⏰ Iniciado em: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     # Conectar ao Oracle
@@ -433,31 +333,28 @@ def main():
         return
     
     try:
-        # Coletar dados
+        # Coletar dados apenas do schema BENTIVI
         all_results = {}
         
-        # Objetos próprios do usuário
-        all_results['owned_objects'] = get_user_owned_objects(engine)
+        # Objetos do schema BENTIVI
+        all_results['bentivi_objects'] = get_bentivi_objects(engine)
         
-        # Objetos acessíveis de outros schemas
-        all_results['accessible_objects'] = get_accessible_objects(engine)
-        
-        # Privilégios do usuário
-        all_results['user_privileges'] = get_user_privileges(engine)
+        # Privilégios específicos no schema BENTIVI
+        all_results['bentivi_privileges'] = get_bentivi_privileges(engine)
         
         # Gerar resumo
         summary = generate_summary(all_results)
         
         # Exibir resumo no console
-        print_summary_console(summary)
+        print_bentivi_summary(summary)
         
         # Salvar arquivo
         print("\n" + "="*80)
-        print("💾 SALVANDO RELATÓRIO")
+        print("💾 SALVANDO RELATÓRIO DO SCHEMA BENTIVI")
         print("="*80)
-        report_file = save_results_to_file(all_results, summary)
+        report_file = save_bentivi_report(all_results, summary)
         
-        print(f"\n🎉 Análise concluída com sucesso!")
+        print(f"\n🎉 Análise do schema BENTIVI concluída!")
         
     except Exception as e:
         print(f"💥 Erro durante a execução: {e}")

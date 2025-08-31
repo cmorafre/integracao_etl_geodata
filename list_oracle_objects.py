@@ -76,6 +76,15 @@ def execute_query_to_dataframe(engine, query: str, description: str) -> pd.DataF
         print(f"🔍 Executando consulta: {description}")
         df = pd.read_sql(query, engine)
         print(f"   📊 {len(df)} registros encontrados")
+        
+        # Debug: mostrar colunas retornadas
+        if not df.empty:
+            print(f"   🔍 Colunas retornadas: {list(df.columns)}")
+            if len(df) > 0:
+                print(f"   🔍 Primeira linha: {dict(df.iloc[0])}")
+        else:
+            print(f"   ⚠️  DataFrame vazio retornado")
+            
         return df
     except Exception as e:
         print(f"   ❌ Erro na consulta {description}: {e}")
@@ -89,10 +98,9 @@ def get_bentivi_objects(engine) -> Dict[str, pd.DataFrame]:
                 SELECT 
                     TABLE_NAME,
                     'TABLE' as OBJECT_TYPE,
-                    NVL(NUM_ROWS, 0) as NUM_ROWS,
-                    TO_CHAR(LAST_ANALYZED, 'YYYY-MM-DD') as LAST_ANALYZED,
-                    TABLESPACE_NAME,
-                    STATUS
+                    NUM_ROWS,
+                    LAST_ANALYZED,
+                    TABLESPACE_NAME
                 FROM ALL_TABLES 
                 WHERE OWNER = 'BENTIVI'
                 ORDER BY TABLE_NAME
@@ -105,8 +113,7 @@ def get_bentivi_objects(engine) -> Dict[str, pd.DataFrame]:
                     VIEW_NAME as TABLE_NAME,
                     'VIEW' as OBJECT_TYPE,
                     TEXT_LENGTH,
-                    READ_ONLY,
-                    'N/A' as STATUS
+                    READ_ONLY
                 FROM ALL_VIEWS 
                 WHERE OWNER = 'BENTIVI'
                 ORDER BY VIEW_NAME
@@ -119,8 +126,8 @@ def get_bentivi_objects(engine) -> Dict[str, pd.DataFrame]:
                     OBJECT_NAME as TABLE_NAME,
                     OBJECT_TYPE,
                     STATUS,
-                    TO_CHAR(CREATED, 'YYYY-MM-DD') as CREATED,
-                    TO_CHAR(LAST_DDL_TIME, 'YYYY-MM-DD') as LAST_DDL_TIME
+                    CREATED,
+                    LAST_DDL_TIME
                 FROM ALL_OBJECTS 
                 WHERE OWNER = 'BENTIVI' 
                 AND OBJECT_TYPE IN ('PROCEDURE', 'PACKAGE', 'PACKAGE BODY')
@@ -134,8 +141,8 @@ def get_bentivi_objects(engine) -> Dict[str, pd.DataFrame]:
                     OBJECT_NAME as TABLE_NAME,
                     OBJECT_TYPE,
                     STATUS,
-                    TO_CHAR(CREATED, 'YYYY-MM-DD') as CREATED,
-                    TO_CHAR(LAST_DDL_TIME, 'YYYY-MM-DD') as LAST_DDL_TIME
+                    CREATED,
+                    LAST_DDL_TIME
                 FROM ALL_OBJECTS 
                 WHERE OWNER = 'BENTIVI' 
                 AND OBJECT_TYPE = 'FUNCTION'
@@ -245,34 +252,56 @@ def save_bentivi_report(all_results: Dict[str, Dict[str, pd.DataFrame]], summary
                     f.write(f"📋 {subcategory.replace('_', ' ').upper()} DO SCHEMA BENTIVI\n")
                     f.write("="*80 + "\n")
                     
-                    # Listar todos os objetos
+                    # Listar todos os objetos - usando índices das colunas diretamente
                     for i, row in df.iterrows():
-                        # Usar TABLE_NAME que é a coluna padrão que definimos
-                        object_name = row.get('TABLE_NAME', 'NOME_NAO_ENCONTRADO')
-                        object_type = row.get('OBJECT_TYPE', 'TIPO_DESCONHECIDO')
+                        # Debug: mostrar todas as colunas disponíveis
+                        row_data = dict(row)
+                        
+                        # Tentar diferentes possíveis nomes de coluna
+                        object_name = None
+                        for possible_col in ['TABLE_NAME', 'OBJECT_NAME', 'VIEW_NAME']:
+                            if possible_col in row_data and pd.notna(row_data[possible_col]):
+                                object_name = row_data[possible_col]
+                                break
+                        
+                        if object_name is None:
+                            # Se nenhuma coluna foi encontrada, usar a primeira coluna não-nula
+                            for col, val in row_data.items():
+                                if pd.notna(val) and str(val).strip():
+                                    object_name = val
+                                    break
+                        
+                        object_name = object_name or 'NOME_NAO_IDENTIFICADO'
+                        object_type = row_data.get('OBJECT_TYPE', 'TIPO_NAO_IDENTIFICADO')
                         
                         line = f"{i+1:4d}. BENTIVI.{object_name} ({object_type})"
                         
-                        # Informações extras
+                        # Informações extras baseadas no que está disponível
                         extra_info = []
-                        if 'STATUS' in row and pd.notna(row['STATUS']) and str(row['STATUS']).upper() != 'N/A':
-                            extra_info.append(f"Status: {row['STATUS']}")
-                        if 'NUM_ROWS' in row and pd.notna(row['NUM_ROWS']) and row['NUM_ROWS'] > 0:
-                            extra_info.append(f"Registros: {row['NUM_ROWS']:,}")
-                        if 'LAST_ANALYZED' in row and pd.notna(row['LAST_ANALYZED']) and str(row['LAST_ANALYZED']) != 'None':
-                            extra_info.append(f"Analisada: {row['LAST_ANALYZED']}")
-                        if 'CREATED' in row and pd.notna(row['CREATED']) and str(row['CREATED']) != 'None':
-                            extra_info.append(f"Criada: {row['CREATED']}")
-                        if 'TABLESPACE_NAME' in row and pd.notna(row['TABLESPACE_NAME']):
-                            extra_info.append(f"Tablespace: {row['TABLESPACE_NAME']}")
-                        if 'TEXT_LENGTH' in row and pd.notna(row['TEXT_LENGTH']):
-                            extra_info.append(f"Tamanho: {row['TEXT_LENGTH']} chars")
-                        if 'READ_ONLY' in row and pd.notna(row['READ_ONLY']):
-                            extra_info.append(f"Somente Leitura: {row['READ_ONLY']}")
-                        if 'PRIVILEGE' in row and pd.notna(row['PRIVILEGE']):
-                            extra_info.append(f"Privilégio: {row['PRIVILEGE']}")
-                        if 'GRANTABLE' in row and pd.notna(row['GRANTABLE']) and str(row['GRANTABLE']).upper() == 'YES':
-                            extra_info.append("Pode conceder")
+                        
+                        # Adicionar informações disponíveis
+                        for col, val in row_data.items():
+                            if col in ['TABLE_NAME', 'OBJECT_TYPE', 'OBJECT_NAME', 'VIEW_NAME']:
+                                continue  # Já usamos essas
+                                
+                            if pd.notna(val) and str(val).strip():
+                                val_str = str(val)
+                                if col == 'NUM_ROWS' and val > 0:
+                                    extra_info.append(f"Registros: {val:,}")
+                                elif col == 'STATUS' and val_str.upper() != 'N/A':
+                                    extra_info.append(f"Status: {val}")
+                                elif col == 'TABLESPACE_NAME':
+                                    extra_info.append(f"Tablespace: {val}")
+                                elif col == 'TEXT_LENGTH':
+                                    extra_info.append(f"Tamanho: {val} chars")
+                                elif col == 'READ_ONLY':
+                                    extra_info.append(f"Somente Leitura: {val}")
+                                elif col in ['LAST_ANALYZED', 'CREATED', 'LAST_DDL_TIME']:
+                                    extra_info.append(f"{col.replace('_', ' ').title()}: {str(val)[:10]}")
+                                elif col == 'PRIVILEGE':
+                                    extra_info.append(f"Privilégio: {val}")
+                                elif col == 'GRANTABLE' and str(val).upper() == 'YES':
+                                    extra_info.append("Pode conceder")
                         
                         if extra_info:
                             line += f"\n     [{', '.join(extra_info)}]"

@@ -1,5 +1,5 @@
 WITH 
--- CTE 1: Configuração de Tipos de Estoque (elimina 4 duplicações idênticas)
+-- CTE 1: Configuração de Tipos de Estoque(elimina 4 duplicações idênticas)
 tipos_estoque AS (
   SELECT codi_top, tipo_est
   FROM (

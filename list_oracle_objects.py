@@ -312,65 +312,92 @@ def generate_summary(all_results: Dict[str, Dict[str, pd.DataFrame]]) -> Dict[st
     
     return summary
 
-def save_results_to_files(all_results: Dict[str, Dict[str, pd.DataFrame]], summary: Dict[str, Any]):
-    """Salva resultados em arquivos"""
+def save_results_to_file(all_results: Dict[str, Dict[str, pd.DataFrame]], summary: Dict[str, Any]):
+    """Salva todos os resultados em um único arquivo TXT detalhado"""
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    base_filename = f"oracle_objects_{timestamp}"
+    report_file = f"oracle_objects_report_{timestamp}.txt"
     
-    # Salvar resumo em JSON
-    summary_file = f"{base_filename}_summary.json"
-    with open(summary_file, 'w', encoding='utf-8') as f:
-        json.dump(summary, f, indent=2, ensure_ascii=False, default=str)
-    print(f"📄 Resumo salvo em: {summary_file}")
-    
-    # Salvar dados detalhados em CSV
-    csv_files = []
-    for category_group, results in all_results.items():
-        for subcategory, df in results.items():
-            if not df.empty:
-                csv_file = f"{base_filename}_{category_group}_{subcategory}.csv"
-                df.to_csv(csv_file, index=False, encoding='utf-8')
-                csv_files.append(csv_file)
-    
-    print(f"📊 {len(csv_files)} arquivos CSV criados:")
-    for csv_file in csv_files:
-        print(f"   • {csv_file}")
-    
-    # Salvar relatório consolidado em texto
-    report_file = f"{base_filename}_report.txt"
     with open(report_file, 'w', encoding='utf-8') as f:
+        # Cabeçalho
         f.write("="*80 + "\n")
-        f.write("RELATÓRIO DE OBJETOS ORACLE ACESSÍVEIS\n")
+        f.write("RELATÓRIO COMPLETO DE OBJETOS ORACLE ACESSÍVEIS\n")
         f.write("="*80 + "\n")
         f.write(f"Usuário: {summary['user']}\n")
         f.write(f"Banco: {summary['database']}\n")
         f.write(f"Data/Hora: {summary['execution_time']}\n")
-        f.write("\n")
+        f.write("="*80 + "\n\n")
         
+        # Resumo geral no topo
+        f.write("📊 RESUMO GERAL\n")
+        f.write("-" * 40 + "\n")
+        total_general = 0
+        for category_group, cat_summary in summary['categories'].items():
+            f.write(f"• {category_group.replace('_', ' ').title()}: {cat_summary['total']} objetos\n")
+            total_general += cat_summary['total']
+        f.write(f"\n🎯 TOTAL GERAL: {total_general} objetos acessíveis\n")
+        f.write("\n" + "="*80 + "\n\n")
+        
+        # Detalhes por categoria
         for category_group, results in all_results.items():
-            f.write(f"\n{category_group.upper().replace('_', ' ')}\n")
-            f.write("-" * 40 + "\n")
+            f.write(f"📁 {category_group.upper().replace('_', ' ')}\n")
+            f.write("="*80 + "\n")
             
+            category_total = 0
             for subcategory, df in results.items():
                 if not df.empty:
-                    f.write(f"\n{subcategory.replace('_', ' ').title()}: {len(df)} objetos\n")
+                    category_total += len(df)
+                    f.write(f"\n📋 {subcategory.replace('_', ' ').title()}: {len(df)} objetos\n")
+                    f.write("-" * 60 + "\n")
                     
-                    # Listar primeiros 10 objetos
-                    for i, row in df.head(10).iterrows():
-                        if 'OWNER' in row and pd.notna(row['OWNER']):
-                            f.write(f"   • {row['OWNER']}.{row['OBJECT_NAME']} ({row['OBJECT_TYPE']})\n")
+                    # Listar TODOS os objetos (não apenas os primeiros 10)
+                    for i, row in df.iterrows():
+                        # Formatar linha baseado no tipo de informação disponível
+                        if 'OWNER' in row and pd.notna(row['OWNER']) and row['OWNER'] != summary['user']:
+                            # Objeto de outro schema
+                            line = f"{i+1:4d}. {row['OWNER']}.{row['OBJECT_NAME']} ({row['OBJECT_TYPE']})"
                         else:
-                            f.write(f"   • {row['OBJECT_NAME']} ({row['OBJECT_TYPE']})\n")
+                            # Objeto próprio do usuário
+                            line = f"{i+1:4d}. {row['OBJECT_NAME']} ({row['OBJECT_TYPE']})"
+                        
+                        # Adicionar informações extras se disponíveis
+                        extra_info = []
+                        if 'STATUS' in row and pd.notna(row['STATUS']):
+                            extra_info.append(f"Status: {row['STATUS']}")
+                        if 'NUM_ROWS' in row and pd.notna(row['NUM_ROWS']):
+                            extra_info.append(f"Linhas: {row['NUM_ROWS']:,}")
+                        if 'TABLE_NAME' in row and pd.notna(row['TABLE_NAME']) and row['OBJECT_TYPE'] in ['INDEX', 'CONSTRAINT']:
+                            extra_info.append(f"Tabela: {row['TABLE_NAME']}")
+                        if 'PRIVILEGE' in row and pd.notna(row['PRIVILEGE']):
+                            extra_info.append(f"Privilégio: {row['PRIVILEGE']}")
+                        if 'GRANTABLE' in row and pd.notna(row['GRANTABLE']) and row['GRANTABLE'] == 'YES':
+                            extra_info.append("Pode conceder")
+                        
+                        if extra_info:
+                            line += f" [{', '.join(extra_info)}]"
+                        
+                        f.write(line + "\n")
                     
-                    if len(df) > 10:
-                        f.write(f"   ... e mais {len(df) - 10} objetos\n")
+                    f.write(f"\n   Total: {len(df)} objetos\n")
+            
+            if category_total == 0:
+                f.write("   Nenhum objeto encontrado nesta categoria.\n")
+            
+            f.write(f"\n   SUBTOTAL {category_group.replace('_', ' ').upper()}: {category_total} objetos\n")
+            f.write("\n" + "="*80 + "\n\n")
         
-        f.write(f"\n\nRESUMO GERAL\n")
-        f.write("-" * 20 + "\n")
-        for category_group, cat_summary in summary['categories'].items():
-            f.write(f"{category_group.replace('_', ' ').title()}: {cat_summary['total']} objetos\n")
+        # Rodapé
+        f.write("INFORMAÇÕES ADICIONAIS\n")
+        f.write("-" * 40 + "\n")
+        f.write("• Este relatório lista todos os objetos Oracle acessíveis pelo usuário\n")
+        f.write("• Objetos próprios não mostram o prefixo do schema (são do usuário atual)\n")
+        f.write("• Objetos de outros schemas mostram SCHEMA.OBJETO\n")
+        f.write("• Privilégios mostram o que o usuário pode fazer em cada objeto\n")
+        f.write(f"• Gerado automaticamente em: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write("\n" + "="*80 + "\n")
     
-    print(f"📋 Relatório consolidado salvo em: {report_file}")
+    print(f"📋 Relatório completo salvo em: {report_file}")
+    print(f"📄 Arquivo único contém {total_general} objetos detalhados")
+    return report_file
 
 def print_summary_console(summary: Dict[str, Any]):
     """Exibe resumo no console"""
@@ -424,11 +451,11 @@ def main():
         # Exibir resumo no console
         print_summary_console(summary)
         
-        # Salvar arquivos
+        # Salvar arquivo
         print("\n" + "="*80)
-        print("💾 SALVANDO RESULTADOS")
+        print("💾 SALVANDO RELATÓRIO")
         print("="*80)
-        save_results_to_files(all_results, summary)
+        report_file = save_results_to_file(all_results, summary)
         
         print(f"\n🎉 Análise concluída com sucesso!")
         

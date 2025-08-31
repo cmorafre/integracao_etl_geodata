@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Any
+from sqlalchemy import create_engine, text
 
 # Carregar variáveis de ambiente do arquivo .env
 try:
@@ -26,8 +27,8 @@ try:
 except ImportError:
     print("⚠️  python-dotenv não instalado, usando variáveis de ambiente do sistema")
 
-def get_oracle_connection():
-    """Cria conexão com Oracle usando credenciais do .env"""
+def get_oracle_engine():
+    """Cria engine SQLAlchemy para Oracle usando credenciais do .env"""
     try:
         oracle_host = os.getenv('ORACLE_HOST')
         oracle_port = int(os.getenv('ORACLE_PORT', '1521'))
@@ -46,29 +47,41 @@ def get_oracle_connection():
         print(f"📡 Conectando em Oracle: {oracle_host}:{oracle_port}/{oracle_service}")
         print(f"👤 Usuário: {oracle_user}")
         
-        # Criar DSN e conexão
+        # Criar string de conexão SQLAlchemy
         dsn = cx_Oracle.makedsn(oracle_host, oracle_port, service_name=oracle_service)
-        connection = cx_Oracle.connect(user=oracle_user, password=oracle_password, dsn=dsn)
+        connection_string = f"oracle+cx_oracle://{oracle_user}:{oracle_password}@{dsn}"
+        
+        # Criar engine
+        engine = create_engine(
+            connection_string,
+            echo=False,
+            pool_pre_ping=True,
+            pool_recycle=3600
+        )
+        
+        # Testar conexão
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1 FROM DUAL"))
         
         print("✅ Conexão Oracle estabelecida com sucesso!")
-        return connection
+        return engine
         
     except Exception as e:
         print(f"❌ Erro ao conectar no Oracle: {e}")
         return None
 
-def execute_query_to_dataframe(connection, query: str, description: str) -> pd.DataFrame:
+def execute_query_to_dataframe(engine, query: str, description: str) -> pd.DataFrame:
     """Executa query e retorna DataFrame"""
     try:
         print(f"🔍 Executando consulta: {description}")
-        df = pd.read_sql(query, connection)
+        df = pd.read_sql(query, engine)
         print(f"   📊 {len(df)} registros encontrados")
         return df
     except Exception as e:
         print(f"   ❌ Erro na consulta {description}: {e}")
         return pd.DataFrame()
 
-def get_user_owned_objects(connection) -> Dict[str, pd.DataFrame]:
+def get_user_owned_objects(engine) -> Dict[str, pd.DataFrame]:
     """Obtém objetos que pertencem ao usuário GEODATA"""
     queries = {
         'tables': {
@@ -161,12 +174,12 @@ def get_user_owned_objects(connection) -> Dict[str, pd.DataFrame]:
     
     results = {}
     for category, info in queries.items():
-        df = execute_query_to_dataframe(connection, info['query'], info['description'])
+        df = execute_query_to_dataframe(engine, info['query'], info['description'])
         results[category] = df
     
     return results
 
-def get_accessible_objects(connection) -> Dict[str, pd.DataFrame]:
+def get_accessible_objects(engine) -> Dict[str, pd.DataFrame]:
     """Obtém objetos de outros schemas que o usuário pode acessar"""
     queries = {
         'accessible_tables': {
@@ -222,12 +235,12 @@ def get_accessible_objects(connection) -> Dict[str, pd.DataFrame]:
     
     results = {}
     for category, info in queries.items():
-        df = execute_query_to_dataframe(connection, info['query'], info['description'])
+        df = execute_query_to_dataframe(engine, info['query'], info['description'])
         results[category] = df
     
     return results
 
-def get_user_privileges(connection) -> Dict[str, pd.DataFrame]:
+def get_user_privileges(engine) -> Dict[str, pd.DataFrame]:
     """Obtém privilégios do usuário"""
     queries = {
         'table_privileges': {
@@ -272,7 +285,7 @@ def get_user_privileges(connection) -> Dict[str, pd.DataFrame]:
     
     results = {}
     for category, info in queries.items():
-        df = execute_query_to_dataframe(connection, info['query'], info['description'])
+        df = execute_query_to_dataframe(engine, info['query'], info['description'])
         results[category] = df
     
     return results
@@ -387,8 +400,8 @@ def main():
     print(f"⏰ Iniciado em: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     # Conectar ao Oracle
-    connection = get_oracle_connection()
-    if not connection:
+    engine = get_oracle_engine()
+    if not engine:
         print("💥 Falha na conexão. Verifique as credenciais no arquivo .env")
         return
     
@@ -397,13 +410,13 @@ def main():
         all_results = {}
         
         # Objetos próprios do usuário
-        all_results['owned_objects'] = get_user_owned_objects(connection)
+        all_results['owned_objects'] = get_user_owned_objects(engine)
         
         # Objetos acessíveis de outros schemas
-        all_results['accessible_objects'] = get_accessible_objects(connection)
+        all_results['accessible_objects'] = get_accessible_objects(engine)
         
         # Privilégios do usuário
-        all_results['user_privileges'] = get_user_privileges(connection)
+        all_results['user_privileges'] = get_user_privileges(engine)
         
         # Gerar resumo
         summary = generate_summary(all_results)
@@ -423,8 +436,8 @@ def main():
         print(f"💥 Erro durante a execução: {e}")
         
     finally:
-        # Fechar conexão
-        connection.close()
+        # Fechar engine
+        engine.dispose()
         print("🔐 Conexão Oracle fechada")
 
 if __name__ == "__main__":
